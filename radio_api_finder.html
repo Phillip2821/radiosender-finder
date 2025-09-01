@@ -132,76 +132,9 @@
         const suggestionsButton = document.getElementById('suggestionsButton');
 
         let foundStation = null;
+        const tolerance = 0.01;
 
-        // Mapping von Land zu Bundesländern/Kantonen
-        const statesByCountry = {
-            'Deutschland': [
-                'Bitte Bundesland wählen...',
-                'Baden-Württemberg',
-                'Bayern',
-                'Berlin',
-                'Brandenburg',
-                'Bremen',
-                'Hamburg',
-                'Hessen',
-                'Mecklenburg-Vorpommern',
-                'Niedersachsen',
-                'Nordrhein-Westfalen',
-                'Rheinland-Pfalz',
-                'Saarland',
-                'Sachsen',
-                'Sachsen-Anhalt',
-                'Schleswig-Holstein',
-                'Thüringen',
-                'Überregional'
-            ],
-            'Österreich': [
-                'Bitte Bundesland wählen...',
-                'Burgenland',
-                'Kärnten',
-                'Niederösterreich',
-                'Oberösterreich',
-                'Salzburg',
-                'Steiermark',
-                'Tirol',
-                'Vorarlberg',
-                'Wien',
-                'Überregional'
-            ],
-            'Schweiz': [
-                'Bitte Kanton wählen...',
-                'Aargau',
-                'Appenzell Ausserrhoden',
-                'Appenzell Innerrhoden',
-                'Basel-Landschaft',
-                'Basel-Stadt',
-                'Bern',
-                'Freiburg',
-                'Genf',
-                'Glarus',
-                'Graubünden',
-                'Jura',
-                'Luzern',
-                'Neuenburg',
-                'Nidwalden',
-                'Obwalden',
-                'Schaffhausen',
-                'Schwyz',
-                'Solothurn',
-                'St. Gallen',
-                'Tessin',
-                'Thurgau',
-                'Uri',
-                'Waadt',
-                'Wallis',
-                'Zug',
-                'Zürich',
-                'Überregional'
-            ]
-        };
-
-        // Simuliert eine API-Antwort mit einer umfangreicheren Liste von Sendern
-        const mockApiData = [
+        const allRadioStations = [
             // Deutschland (erweiterte Liste)
             { frequency: 88.8, name: 'radioeins', country: 'Deutschland', state: 'Berlin' },
             { frequency: 93.6, name: '104.6 RTL', country: 'Deutschland', state: 'Berlin' },
@@ -398,7 +331,81 @@
             { frequency: 103.1, name: 'Radio Fréquence Banane', country: 'Schweiz', state: 'Waadt' },
         ];
 
-        // Event-Listener für die Änderung des Landes-Dropdowns
+        const statesByCountry = {
+            'Deutschland': [
+                'Bitte Bundesland wählen...',
+                'Baden-Württemberg',
+                'Bayern',
+                'Berlin',
+                'Brandenburg',
+                'Bremen',
+                'Hamburg',
+                'Hessen',
+                'Mecklenburg-Vorpommern',
+                'Niedersachsen',
+                'Nordrhein-Westfalen',
+                'Rheinland-Pfalz',
+                'Saarland',
+                'Sachsen',
+                'Sachsen-Anhalt',
+                'Schleswig-Holstein',
+                'Thüringen',
+                'Überregional'
+            ],
+            'Österreich': [
+                'Bitte Bundesland wählen...',
+                'Burgenland',
+                'Kärnten',
+                'Niederösterreich',
+                'Oberösterreich',
+                'Salzburg',
+                'Steiermark',
+                'Tirol',
+                'Vorarlberg',
+                'Wien',
+                'Überregional'
+            ],
+            'Schweiz': [
+                'Bitte Kanton wählen...',
+                'Aargau',
+                'Appenzell Ausserrhoden',
+                'Appenzell Innerrhoden',
+                'Basel-Landschaft',
+                'Basel-Stadt',
+                'Bern',
+                'Freiburg',
+                'Genf',
+                'Glarus',
+                'Graubünden',
+                'Jura',
+                'Luzern',
+                'Neuenburg',
+                'Nidwalden',
+                'Obwalden',
+                'Schaffhausen',
+                'Schwyz',
+                'Solothurn',
+                'St. Gallen',
+                'Tessin',
+                'Thurgau',
+                'Uri',
+                'Waadt',
+                'Wallis',
+                'Zug',
+                'Zürich',
+                'Überregional'
+            ]
+        };
+
+        function showMessage(message, duration = 3000) {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = message;
+            msgBox.style.opacity = '1';
+            setTimeout(() => {
+                msgBox.style.opacity = '0';
+            }, duration);
+        }
+
         countrySelect.addEventListener('change', () => {
             const selectedCountry = countrySelect.value;
             stateSelect.innerHTML = '';
@@ -425,180 +432,197 @@
             }
         });
 
-        // Simuliert eine API-Anfrage
-        function fetchStationsFromApi(country, state) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    const stations = mockApiData.filter(s => s.country === country && s.state === state);
-                    resolve(stations);
-                }, 1000); // Verzögerung von 1 Sekunde zur Simulation einer Netzwerkabfrage
-            });
-        }
+        async function findStation() {
+            const country = countrySelect.value;
+            const state = stateSelect.value;
+            const frequencyStr = frequencyInput.value;
 
-        findButton.addEventListener('click', async () => {
-            const selectedCountry = countrySelect.value;
-            const selectedState = stateSelect.value;
-            const rawFrequency = frequencyInput.value.trim().replace(',', '.');
-            const frequency = parseFloat(rawFrequency);
+            if (!country || !state || !frequencyStr) {
+                showMessage("Bitte füllen Sie alle Felder aus.", 4000);
+                return;
+            }
 
-            if (!selectedCountry) {
-                resultElement.innerHTML = `<p class="text-red-500 font-semibold">Bitte wählen Sie ein Land aus.</p>`;
-                showMessage("Fehler: Land fehlt", 2000);
-                return;
-            }
-            if (!selectedState || selectedState.startsWith("Bitte")) {
-                resultElement.innerHTML = `<p class="text-red-500 font-semibold">Bitte wählen Sie ein Bundesland/Kanton aus.</p>`;
-                showMessage("Fehler: Bundesland/Kanton fehlt", 2000);
-                return;
-            }
-            if (isNaN(frequency)) {
-                resultElement.innerHTML = `<p class="text-red-500 font-semibold">Bitte geben Sie eine gültige Zahl ein.</p>`;
-                showMessage("Fehler: Ungültige Frequenz", 2000);
-                return;
-            }
-            
-            resultElement.innerHTML = '';
             loadingIndicator.style.display = 'block';
+            resultElement.innerHTML = '';
             geminiFeatures.classList.add('hidden');
+            findButton.disabled = true;
+            foundStation = null;
 
             try {
-                const filteredStations = await fetchStationsFromApi(selectedCountry, selectedState);
-                const roundedFrequency = Math.round(frequency * 10) / 10;
-                foundStation = filteredStations.find(station => Math.abs(station.frequency - roundedFrequency) < 0.01);
+                const frequency = parseFloat(frequencyStr.replace(',', '.'));
+                if (isNaN(frequency)) {
+                    showMessage("Ungültige Frequenz. Bitte geben Sie eine Zahl ein.", 4000);
+                    return;
+                }
 
-                if (foundStation) {
+                const stations = allRadioStations.filter(s =>
+                    s.country === country && s.state === state && Math.abs(s.frequency - frequency) < tolerance
+                );
+
+                if (stations.length > 0) {
+                    foundStation = stations[0];
                     resultElement.innerHTML = `
-                        <p class="text-green-600 font-bold text-2xl">${foundStation.name}</p>
-                        <p class="text-gray-500 mt-2">Sender für ${roundedFrequency} MHz</p>
+                        <p class="text-gray-700 text-xl font-semibold mb-2">Sender gefunden!</p>
+                        <p class="text-gray-900 text-2xl font-bold">${foundStation.name}</p>
+                        <p class="text-gray-600">${foundStation.country}, ${foundStation.state}</p>
                     `;
                     geminiFeatures.classList.remove('hidden');
-                    showMessage(`Sender gefunden: ${foundStation.name}`);
                 } else {
                     resultElement.innerHTML = `
-                        <p class="text-red-500 font-bold text-2xl">Ne,den Sender Kenn ich nicht</p>
-                        <p class="text-gray-500 mt-2">Kein Sender für ${roundedFrequency} MHz im ausgewählten Bundesland.</p>
+                        <p class="text-red-500 text-xl font-semibold mb-2">Kein Sender gefunden.</p>
+                        <p class="text-gray-500">Überprüfen Sie Ihre Eingabe. Möglicherweise ist der gesuchte Sender nicht in der Datenbank.</p>
                     `;
-                    showMessage("Ne,den Sender Kenn ich nicht", 2000);
-                    foundStation = null;
                 }
             } catch (error) {
-                resultElement.innerHTML = `<p class="text-red-500 font-semibold">Fehler bei der Abfrage der Senderliste.</p>`;
-                showMessage("Fehler: Abfrage fehlgeschlagen", 2000);
+                console.error("Fehler bei der Suche:", error);
+                resultElement.innerHTML = `
+                    <p class="text-red-500 text-xl font-semibold mb-2">Fehler!</p>
+                    <p class="text-gray-500">Ein unerwarteter Fehler ist aufgetreten.</p>
+                `;
             } finally {
                 loadingIndicator.style.display = 'none';
+                findButton.disabled = false;
+            }
+        }
+
+        findButton.addEventListener('click', findStation);
+        frequencyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                findStation();
             }
         });
 
         senderInfoButton.addEventListener('click', async () => {
-            if (!foundStation) {
-                showMessage("Bitte zuerst einen Sender finden.", 2000);
-                return;
-            }
-
-            resultElement.innerHTML = `<div id="loading" class="text-center mt-4"><span>Lädt...</span><div class="loading-spinner"></div></div>`;
+            if (!foundStation) return;
             loadingIndicator.style.display = 'block';
+            senderInfoButton.disabled = true;
 
-            const userQuery = `Schreibe eine kurze Zusammenfassung über den Radiosender "${foundStation.name}". Gib Informationen über das Format, die Musikrichtung und das typische Publikum des Senders. Antworte in einem kurzen Absatz.`;
-            const systemPrompt = "Sie sind ein freundlicher und kompetenter Radioexperte, der in der Lage ist, präzise und informative Beschreibungen von Radiosendern zu geben.";
-
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                tools: [{ "google_search": {} }],
-            };
-            
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const systemPrompt = "Sie sind ein Radiosender-Experte. Geben Sie eine kurze und prägnante Beschreibung des Senders. Nennen Sie die Musikrichtung und das typische Publikum.";
+            const userQuery = `Beschreibe den Radiosender "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}.`;
 
             try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    tools: [{ "google_search": {} }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 const result = await response.json();
-                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                const candidate = result.candidates?.[0];
 
-                if (text) {
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    const sources = candidate.groundingMetadata?.groundingAttributions
+                        ?.map(attribution => ({
+                            uri: attribution.web?.uri,
+                            title: attribution.web?.title,
+                        }))
+                        .filter(source => source.uri && source.title) || [];
+
+                    let sourcesHtml = '';
+                    if (sources.length > 0) {
+                        sourcesHtml = `<div class="mt-4 text-xs text-gray-500 text-left">
+                            <p>Quellen:</p>
+                            <ul>
+                                ${sources.map(s => `<li><a href="${s.uri}" target="_blank" class="hover:underline">${s.title}</a></li>`).join('')}
+                            </ul>
+                        </div>`;
+                    }
+
                     resultElement.innerHTML = `
-                        <p class="text-gray-800 font-bold text-xl mb-2">${foundStation.name}</p>
-                        <p class="text-gray-600">${text}</p>
+                        <p class="text-gray-700 text-xl font-semibold mb-2">${foundStation.name}</p>
+                        <p class="text-gray-600 text-base mb-4">${text}</p>
+                        ${sourcesHtml}
                     `;
                 } else {
-                    resultElement.innerHTML = `<p class="text-red-500 font-semibold">Sender-Info konnte nicht geladen werden.</p>`;
+                    showMessage("Gemini konnte keine Informationen finden.");
                 }
             } catch (error) {
-                resultElement.innerHTML = `<p class="text-red-500 font-semibold">Fehler beim Laden der Sender-Info.</p>`;
+                showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
+                console.error("Gemini API Error:", error);
             } finally {
                 loadingIndicator.style.display = 'none';
+                senderInfoButton.disabled = false;
             }
         });
 
         suggestionsButton.addEventListener('click', async () => {
-            if (!foundStation) {
-                showMessage("Bitte zuerst einen Sender finden.", 2000);
-                return;
-            }
-
-            resultElement.innerHTML = `<div id="loading" class="text-center mt-4"><span>Lädt...</span><div class="loading-spinner"></div></div>`;
+            if (!foundStation) return;
             loadingIndicator.style.display = 'block';
+            suggestionsButton.disabled = true;
 
-            const userQuery = `Empfehle 3 ähnliche Radiosender wie "${foundStation.name}". Gib den Namen, das Land und das Bundesland/Kanton an, in dem sie zu finden sind. Gib die Antwort als eine einfache Liste ohne zusätzlichen Text, nur mit den Sendern. Nutze das Format: "Sendername, Land, Bundesland".`;
-            const systemPrompt = "Sie sind ein professioneller Radio-Empfehler. Ihre Aufgabe ist es, präzise und schnelle Vorschläge für Radiosender zu liefern. Sie geben nur die angefragten Informationen, ohne weitere Erklärungen.";
+            const systemPrompt = "Sie sind ein Musikexperte. Geben Sie eine kurze Liste ähnlicher Radiosender, die der Benutzer basierend auf dem gefundenen Sender mögen könnte. Die Sender müssen im JSON-Format sein.";
+            const userQuery = `Empfehle 3-4 ähnliche Radiosender wie "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}.`;
 
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                "sendername": { "type": "STRING" },
-                                "land": { "type": "STRING" },
-                                "bundesland": { "type": "STRING" }
-                            },
-                            "propertyOrdering": ["sendername", "land", "bundesland"]
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    tools: [{ "google_search": {} }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "name": { "type": "STRING" },
+                                    "description": { "type": "STRING" },
+                                    "country": { "type": "STRING" },
+                                },
+                                "propertyOrdering": ["name", "description", "country"]
+                            }
                         }
                     }
-                }
-            };
-            
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            
-            try {
+                };
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
-                const result = await response.json();
-                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                
-                if (jsonText) {
-                    const parsedJson = JSON.parse(jsonText);
-                    let suggestionsHtml = '<h3 class="text-xl font-bold mb-4">Ähnliche Sender</h3><ul>';
-                    parsedJson.forEach(suggestion => {
-                        suggestionsHtml += `<li class="mb-2 p-2 bg-gray-100 rounded-lg"><strong>${suggestion.sendername}</strong>, ${suggestion.land}, ${suggestion.bundesland}</li>`;
-                    });
-                    suggestionsHtml += '</ul>';
-                    resultElement.innerHTML = suggestionsHtml;
-                } else {
-                    resultElement.innerHTML = `<p class="text-red-500 font-semibold">Vorschläge konnten nicht geladen werden.</p>`;
+
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
                 }
 
+                const result = await response.json();
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                const suggestions = JSON.parse(jsonText);
+
+                if (suggestions && suggestions.length > 0) {
+                    let suggestionsHtml = `<p class="text-gray-700 text-xl font-semibold mb-2">Ähnliche Sender:</p><ul class="list-disc list-inside text-gray-800">`;
+                    suggestions.forEach(s => {
+                        suggestionsHtml += `<li><strong>${s.name}</strong> - ${s.description} (${s.country})</li>`;
+                    });
+                    suggestionsHtml += `</ul>`;
+                    resultElement.innerHTML = suggestionsHtml;
+                } else {
+                    showMessage("Gemini konnte keine Vorschläge finden.");
+                }
             } catch (error) {
-                console.error("Error generating suggestions:", error);
-                resultElement.innerHTML = `<p class="text-red-500 font-semibold">Fehler beim Laden der Vorschläge.</p>`;
+                showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
+                console.error("Gemini API Error:", error);
             } finally {
                 loadingIndicator.style.display = 'none';
+                suggestionsButton.disabled = false;
             }
         });
     </script>
+
 </body>
 </html>
