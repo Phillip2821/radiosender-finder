@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiosender-Finder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 28rem;
+            width: 100%;
+            text-align: center;
+        }
+        .message-box {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background-color: #10b981;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 1000;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 2rem;
+            height: 2rem;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Radiosender-Finder (API-Version)</h1>
+        <p class="text-gray-600 mb-6">Wählen Sie Land und Bundesland aus und geben Sie eine Radiofrequenz in MHz ein.</p>
+        
+        <div class="mb-4">
+            <select id="countrySelect" class="w-full px-4 py-3 text-lg text-gray-700 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+                <option value="">Bitte Land wählen...</option>
+                <option value="Deutschland">Deutschland</option>
+                <option value="Österreich">Österreich</option>
+                <option value="Schweiz">Schweiz</option>
+            </select>
+        </div>
+
+        <div class="mb-6">
+            <select id="stateSelect" class="w-full px-4 py-3 text-lg text-gray-700 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" disabled>
+                <option value="">Bitte Bundesland wählen...</option>
+            </select>
+        </div>
+
+        <div class="flex items-center justify-center mb-6">
+            <input type="text" id="frequencyInput" placeholder="z.B. 95.2" class="w-full px-4 py-3 text-lg text-gray-700 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
+            <span class="ml-2 text-xl font-semibold text-gray-700">MHz</span>
+        </div>
+        
+        <button id="findButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
+            Sender finden
+        </button>
+
+        <div id="loadingIndicator" class="loading-spinner mt-4"></div>
+
+        <div id="result" class="mt-8">
+            <p class="text-gray-500 text-lg">
+                Das Ergebnis wird hier angezeigt.
+            </p>
+        </div>
+
+        <!-- Gemini API Features Section -->
+        <div id="geminiFeatures" class="hidden mt-8 pt-4 border-t border-gray-200">
+            <button id="senderInfoButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 mb-4">
+                ✨ Sender-Info
+            </button>
+            <button id="suggestionsButton" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
+                ✨ Vorschläge
+            </button>
+        </div>
+
+        <div class="mt-8 pt-4 border-t border-gray-200">
+            <h3 class="text-xl font-bold text-gray-700 mb-2">Hinweis zur Senderliste</h3>
+            <p class="text-sm text-gray-500">
+                Diese Version simuliert die Abfrage einer externen Datenbank (API), um eine größere Liste von Sendern zu durchsuchen.
+            </p>
+        </div>
+    </div>
+
+    <div id="message-box" class="message-box"></div>
+
+    <script>
+        function showMessage(message, duration = 3000) {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = message;
+            msgBox.style.opacity = '1';
+            setTimeout(() => {
+                msgBox.style.opacity = '0';
+            }, duration);
+        }
+
+        const countrySelect = document.getElementById('countrySelect');
+        const stateSelect = document.getElementById('stateSelect');
+        const findButton = document.getElementById('findButton');
+        const frequencyInput = document.getElementById('frequencyInput');
+        const resultElement = document.getElementById('result');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const geminiFeatures = document.getElementById('geminiFeatures');
+        const senderInfoButton = document.getElementById('senderInfoButton');
+        const suggestionsButton = document.getElementById('suggestionsButton');
+
+        let foundStation = null;
+        const tolerance = 0.01;
+
+        const allRadioStations = [
+            // Deutschland (erweiterte Liste)
+            { frequency: 88.8, name: 'radioeins', country: 'Deutschland', state: 'Berlin' },
+            { frequency: 93.6, name: '104.6 RTL', country: 'Deutschland', state: 'Berlin' },
+            { frequency: 95.8, name: 'rbb 88.8', country: 'Deutschland', state: 'Berlin' },
+            { frequency: 90.0, name: '90elf', country: 'Deutschland', state: 'Berlin' },
+            { frequency: 106.0, name: 'JAM FM', country: 'Deutschland', state: 'Berlin' },
+            { frequency: 107.5, name: 'Deutschlandfunk', country: 'Deutschland', state: 'Überregional' },
+            { frequency: 95.2, name: 'Antenne Bayern', country: 'Deutschland', state: 'Bayern' },
+            { frequency: 89.0, name: 'Bayern 3', country: 'Deutschland', state: 'Bayern' },
+            { frequency: 93.2, name: 'egoFM', country: 'Deutschland', state: 'Bayern' },
+            { frequency: 105.3, name: 'Radio Gong Würzburg', country: 'Deutschland', state: 'Bayern' },
+            { frequency: 97.2, name: 'radio B2', country: 'Deutschland', state: 'Brandenburg' },
+            { frequency: 101.9, name: 'BB Radio', country: 'Deutschland', state: 'Brandenburg' },
+            { frequency: 93.4, name: 'Hit Radio FFH', country: 'Deutschland', state: 'Hessen' },
+            { frequency: 94.0, name: 'harmony.fm', country: 'Deutschland', state: 'Hessen' },
+            { frequency: 99.2, name: 'Radio Hamburg', country: 'Deutschland', state: 'Hamburg' },
+            { frequency: 90.3, name: 'NDR 90,3', country: 'Deutschland', state: 'Hamburg' },
+            { frequency: 94.3, name: 'Radio Hochstift', country: 'Deutschland', state: 'Nordrhein-Westfalen' },
+            { frequency: 102.7, name: 'Radio NRW', country: 'Deutschland', state: 'Nordrhein-Westfalen' },
+            { frequency: 90.1, name: 'bigFM', country: 'Deutschland', state: 'Rheinland-Pfalz' },
+            { frequency: 105.7, name: 'RPR1', country: 'Deutschland', state: 'Rheinland-Pfalz' },
+            { frequency: 100.0, name: 'Radio Regenbogen', country: 'Deutschland', state: 'Baden-Württemberg' },
+            { frequency: 97.1, name: 'SWR1 Baden-Württemberg', country: 'Deutschland', state: 'Baden-Württemberg' },
+            { frequency: 90.8, name: 'MDR Jump', country: 'Deutschland', state: 'Sachsen' },
+            { frequency: 100.8, name: 'Radio PSR', country: 'Deutschland', state: 'Sachsen' },
+            { frequency: 99.4, name: 'Antenne Niedersachsen', country: 'Deutschland', state: 'Niedersachsen' },
+            { frequency: 90.0, name: 'NDR 1 Niedersachsen', country: 'Deutschland', state: 'Niedersachsen' },
+            { frequency: 98.7, name: 'R.SH', country: 'Deutschland', state: 'Schleswig-Holstein' },
+            { frequency: 92.4, name: 'Radio Bremen Eins', country: 'Deutschland', state: 'Bremen' },
+            { frequency: 106.5, name: 'Radio Bremen Vier', country: 'Deutschland', state: 'Bremen' },
+            { frequency: 96.9, name: 'Antenne MV', country: 'Deutschland', state: 'Mecklenburg-Vorpommern' },
+            { frequency: 102.0, name: 'Ostseewelle', country: 'Deutschland', state: 'Mecklenburg-Vorpommern' },
+            { frequency: 100.6, name: 'SR 1', country: 'Deutschland', state: 'Saarland' },
+            { frequency: 93.8, name: 'Radio Salü', country: 'Deutschland', state: 'Saarland' },
+            { frequency: 91.5, name: 'MDR Jump', country: 'Deutschland', state: 'Sachsen-Anhalt' },
+            { frequency: 94.6, name: 'Radio SAW', country: 'Deutschland', state: 'Sachsen-Anhalt' },
+            { frequency: 95.0, name: 'MDR Thüringen', country: 'Deutschland', state: 'Thüringen' },
+            { frequency: 99.0, name: 'Antenne Thüringen', country: 'Deutschland', state: 'Thüringen' },
+            { frequency: 91.7, name: 'Radio Brocken', country: 'Deutschland', state: 'Sachsen-Anhalt' },
+            { frequency: 103.8, name: 'Antenne 1', country: 'Deutschland', state: 'Baden-Württemberg' },
+
+            // Österreich (umfassende Liste)
+            { frequency: 98.4, name: 'Ö3', country: 'Österreich', state: 'Wien' },
+            { frequency: 99.1, name: 'FM4', country: 'Österreich', state: 'Wien' },
+            { frequency: 99.0, name: 'Radio 88.6', country: 'Österreich', state: 'Wien' },
+            { frequency: 103.5, name: 'Radio Wien', country: 'Österreich', state: 'Wien' },
+            { frequency: 105.8, name: 'Radio Arabella', country: 'Österreich', state: 'Wien' },
+            { frequency: 106.5, name: 'Radio Superfly', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien - Dance', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien - Fitness', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien - Hits', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien - Lounge', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien - Pop', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien - R&B', country: 'Österreich', state: 'Wien' },
+            { frequency: 107.0, name: 'Radio Energy Wien - Rock', country: 'Österreich', state: 'Wien' },
+            { frequency: 92.0, name: 'Kronehit', country: 'Österreich', state: 'Überregional' },
+            { frequency: 88.8, name: 'Ö3', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 90.5, name: 'Life Radio', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 95.2, name: 'Radio Oberösterreich', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 101.9, name: 'Welle 1', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 93.3, name: 'Radio Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 91.7, name: 'Ö3', country: 'Österreich', state: 'Tirol' },
+            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 92.5, name: 'Radio U1 Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 107.5, name: 'Hitradio Ö3', country: 'Österreich', state: 'Tirol' },
+            { frequency: 106.5, name: 'Radio Technikum', country: 'Österreich', state: 'Tirol' },
+            { frequency: 106.5, name: 'Radio Technikum - Hit Classics', country: 'Österreich', state: 'Tirol' },
+            { frequency: 106.5, name: 'Radio Technikum - Rock Cockpit', country: 'Österreich', state: 'Tirol' },
+            { frequency: 106.5, name: 'Radio Technikum - Smooth Jazz', country: 'Österreich', state: 'Tirol' },
+            { frequency: 97.8, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 99.3, name: 'Radio Graz', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 107.0, name: 'Soundportal', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 106.6, name: 'Radio Helsinki', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 95.7, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland' },
+            { frequency: 94.6, name: 'FM4', country: 'Österreich', state: 'Burgenland' },
+            { frequency: 94.7, name: 'Antenne Kärnten', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 97.9, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 101.4, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
+            { frequency: 93.0, name: 'Ö3', country: 'Österreich', state: 'Niederösterreich' },
+            { frequency: 96.7, name: 'Radio Salzburg', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 91.7, name: 'Antenne Salzburg', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 91.3, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 99.7, name: 'Antenne Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
+            { frequency: 98.7, name: 'ORF Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
+            { frequency: 90.0, name: 'Freie Welle', country: 'Österreich', state: 'Wien' },
+            { frequency: 95.2, name: 'Radio FREI', country: 'Österreich', state: 'Wien' },
+            { frequency: 106.4, name: 'Harmonie', country: 'Österreich', state: 'Wien' },
+            { frequency: 92.6, name: 'Radio Helsinki', country: 'Österreich', state: 'Wien' },
+            { frequency: 90.0, name: 'Radio Klassik Stephansdom', country: 'Österreich', state: 'Wien' },
+            { frequency: 90.0, name: 'Radio Lammertal', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 94.8, name: 'Radio Maria Österreich', country: 'Österreich', state: 'Wien' },
+            { frequency: 90.0, name: 'Radio Max - BIG CITY LIVE', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 90.0, name: 'Radio Max - MERKUR LIVE', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 90.0, name: 'Radio Max - PENNY LIVE', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 90.0, name: 'Radio Max - Radio BILLA', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 90.0, name: 'Radio Max - Radio BIPA', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 92.8, name: 'Radio Mürztaal', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 92.4, name: 'Radio OP', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 97.4, name: 'Radio Osttirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 102.3, name: 'Radio PL1', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 97.5, name: 'Ö1', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 105.7, name: 'Radio RF1', country: 'Österreich', state: 'Niederösterreich' },
+            { frequency: 91.4, name: 'Radio Seefunk', country: 'Österreich', state: 'Vorarlberg' },
+            { frequency: 95.5, name: 'Radio Soundportal', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 95.2, name: 'Radio St. Florian am Inn', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 104.9, name: 'Radio U1 Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 95.4, name: 'Radio Uno', country: 'Österreich', state: 'Wien' },
+            { frequency: 98.4, name: 'Radio Val Canale', country: 'Österreich', state: 'Tirol' },
+            { frequency: 98.1, name: 'Radio Volksmusik', country: 'Österreich', state: 'Niederösterreich' },
+            { frequency: 95.8, name: 'Radio Waltl', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 104.9, name: 'Radio Weiss Rot', country: 'Österreich', state: 'Tirol' },
+            { frequency: 107.0, name: 'Radiofabrik', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 95.2, name: 'radiomix.at - Kanal 01', country: 'Österreich', state: 'Wien' },
+            { frequency: 94.4, name: 'Radio Ypsilon', country: 'Österreich', state: 'Niederösterreich' },
+            { frequency: 106.6, name: 'republic.cafe', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 106.9, name: 'Respect', country: 'Österreich', state: 'Wien' },
+            { frequency: 99.1, name: 'RSF1', country: 'Österreich', state: 'Tirol' },
+            { frequency: 99.4, name: 'Seestadtradio', country: 'Österreich', state: 'Wien' },
+            { frequency: 99.0, name: 'SMC-Radio Austria', country: 'Österreich', state: 'Wien' },
+            { frequency: 94.4, name: 'Spirit Live Radio', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 102.5, name: 'Stahlradio', country: 'Österreich', state: 'Wien' },
+            { frequency: 98.6, name: 'Starlight Radio', country: 'Österreich', state: 'Wien' },
+            { frequency: 95.9, name: 'Sternenfeuer-Radio', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 90.0, name: 'Studio Enns', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 102.1, name: 'TRAP.FM', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 102.1, name: 'T-Rock', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 92.8, name: 'Unzmarkt-Frauenburg LIVE', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 98.4, name: 'VIENNA.AT - 80er', country: 'Österreich', state: 'Wien' },
+            { frequency: 98.4, name: 'VIENNA.AT - 90er', country: 'Österreich', state: 'Wien' },
+            { frequency: 98.4, name: 'VIENNA.AT - Lounge', country: 'Österreich', state: 'Wien' },
+            { frequency: 98.4, name: 'VIENNA.AT - Partymix', country: 'Österreich', state: 'Wien' },
+            { frequency: 98.4, name: 'Wattens.FM', country: 'Österreich', state: 'Tirol' },
+            { frequency: 98.4, name: 'webRadio.Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Graz', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 101.9, name: 'Welle 1 Kärnten', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 101.9, name: 'Welle 1 Oberösterreich', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 101.9, name: 'Welle 1 Salzburg', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 101.9, name: 'Welle 1 Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Tirol - AMS', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Tirol - Black', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Tirol - Club', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Tirol - Lounge', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Tirol - Pop', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Tirol - Rock', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle Murtal', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 101.9, name: 'WelleFM', country: 'Österreich', state: 'Wien' },
+            { frequency: 106.8, name: 'Freies Radio Salzkammergut', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 101.8, name: 'Ö1', country: 'Österreich', state: 'Überregional' },
+            { frequency: 93.6, name: 'FM4', country: 'Österreich', state: 'Überregional' },
+            { frequency: 90.0, name: 'Radio OO', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 95.4, name: 'Radio Wien', country: 'Österreich', state: 'Wien' },
+            { frequency: 101.8, name: 'Radio Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 98.7, name: 'Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
+            { frequency: 96.7, name: 'Radio Salzburg', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 91.3, name: 'Radio Steiermark', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 101.4, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
+            { frequency: 94.7, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 102.1, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland' },
+            { frequency: 103.1, name: 'Antenne Kärnten', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 91.7, name: 'Antenne Salzburg', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 91.3, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 99.7, name: 'Antenne Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
+            { frequency: 98.7, name: 'ORF Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
+            { frequency: 104.1, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland' },
+            { frequency: 105.2, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
+            { frequency: 105.6, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten' },
+            { frequency: 92.5, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
+            
+            // Schweiz (erweiterte Liste)
+            { frequency: 100.2, name: 'Radio Zürisee', country: 'Schweiz', state: 'Zürich' },
+            { frequency: 105.7, name: 'Radio Pilatus', country: 'Schweiz', state: 'Luzern' },
+            { frequency: 106.8, name: 'SRF 1', country: 'Schweiz', state: 'Überregional' },
+            { frequency: 95.9, name: 'Radio 24', country: 'Schweiz', state: 'Zürich' },
+            { frequency: 102.3, name: 'Radio Fribourg', country: 'Schweiz', state: 'Freiburg' },
+            { frequency: 104.0, name: 'Radio Bern 1', country: 'Schweiz', state: 'Bern' },
+            { frequency: 94.5, name: 'Radio Basel', country: 'Schweiz', state: 'Basel-Stadt' },
+            { frequency: 98.7, name: 'Radio Argovia', country: 'Schweiz', state: 'Aargau' },
+            { frequency: 100.0, name: 'RTS La Première', country: 'Schweiz', state: 'Genf' },
+            { frequency: 96.6, name: 'Radio FM1', country: 'Schweiz', state: 'St. Gallen' },
+            { frequency: 101.6, name: 'Radio 32', country: 'Schweiz', state: 'Solothurn' },
+            { frequency: 92.8, name: 'Radio Sunshine', country: 'Schweiz', state: 'Zürich' },
+            { frequency: 103.8, name: 'Radio BeO', country: 'Schweiz', state: 'Bern' },
+            { frequency: 105.0, name: 'SRF 3', country: 'Schweiz', state: 'Zürich' },
+            { frequency: 98.1, name: 'Radio Rottu', country: 'Schweiz', state: 'Wallis' },
+            { frequency: 96.3, name: 'Radio Basilisk', country: 'Schweiz', state: 'Basel-Stadt' },
+            { frequency: 94.2, name: 'Radio Grischa', country: 'Schweiz', state: 'Graubünden' },
+            { frequency: 91.1, name: 'Radio Canal 3', country: 'Schweiz', state: 'Bern' },
+            { frequency: 90.5, name: 'Radio LFM', country: 'Schweiz', state: 'Tessin' },
+            { frequency: 99.5, name: 'Radio SRF Musikwelle', country: 'Schweiz', state: 'Überregional' },
+            { frequency: 102.8, name: 'Radio Fribourg', country: 'Schweiz', state: 'Freiburg' },
+            { frequency: 103.1, name: 'Radio Fréquence Banane', country: 'Schweiz', state: 'Waadt' },
+        ];
+
+        const statesByCountry = {
+            'Deutschland': [
+                'Bitte Bundesland wählen...',
+                'Baden-Württemberg',
+                'Bayern',
+                'Berlin',
+                'Brandenburg',
+                'Bremen',
+                'Hamburg',
+                'Hessen',
+                'Mecklenburg-Vorpommern',
+                'Niedersachsen',
+                'Nordrhein-Westfalen',
+                'Rheinland-Pfalz',
+                'Saarland',
+                'Sachsen',
+                'Sachsen-Anhalt',
+                'Schleswig-Holstein',
+                'Thüringen',
+                'Überregional'
+            ],
+            'Österreich': [
+                'Bitte Bundesland wählen...',
+                'Burgenland',
+                'Kärnten',
+                'Niederösterreich',
+                'Oberösterreich',
+                'Salzburg',
+                'Steiermark',
+                'Tirol',
+                'Vorarlberg',
+                'Wien',
+                'Überregional'
+            ],
+            'Schweiz': [
+                'Bitte Kanton wählen...',
+                'Aargau',
+                'Appenzell Ausserrhoden',
+                'Appenzell Innerrhoden',
+                'Basel-Landschaft',
+                'Basel-Stadt',
+                'Bern',
+                'Freiburg',
+                'Genf',
+                'Glarus',
+                'Graubünden',
+                'Jura',
+                'Luzern',
+                'Neuenburg',
+                'Nidwalden',
+                'Obwalden',
+                'Schaffhausen',
+                'Schwyz',
+                'Solothurn',
+                'St. Gallen',
+                'Tessin',
+                'Thurgau',
+                'Uri',
+                'Waadt',
+                'Wallis',
+                'Zug',
+                'Zürich',
+                'Überregional'
+            ]
+        };
+
+        function showMessage(message, duration = 3000) {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = message;
+            msgBox.style.opacity = '1';
+            setTimeout(() => {
+                msgBox.style.opacity = '0';
+            }, duration);
+        }
+
+        countrySelect.addEventListener('change', () => {
+            const selectedCountry = countrySelect.value;
+            stateSelect.innerHTML = '';
+            stateSelect.disabled = true;
+            geminiFeatures.classList.add('hidden');
+            resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
+
+            if (selectedCountry) {
+                const states = statesByCountry[selectedCountry];
+                if (states) {
+                    states.forEach(state => {
+                        const option = document.createElement('option');
+                        option.value = state;
+                        option.textContent = state;
+                        stateSelect.appendChild(option);
+                    });
+                    stateSelect.disabled = false;
+                }
+            } else {
+                 const option = document.createElement('option');
+                 option.value = "";
+                 option.textContent = "Bitte Bundesland wählen...";
+                 stateSelect.appendChild(option);
+            }
+        });
+
+        async function findStation() {
+            const country = countrySelect.value;
+            const state = stateSelect.value;
+            const frequencyStr = frequencyInput.value;
+
+            if (!country || !state || !frequencyStr) {
+                showMessage("Bitte füllen Sie alle Felder aus.", 4000);
+                return;
+            }
+
+            loadingIndicator.style.display = 'block';
+            resultElement.innerHTML = '';
+            geminiFeatures.classList.add('hidden');
+            findButton.disabled = true;
+            foundStation = null;
+
+            try {
+                const frequency = parseFloat(frequencyStr.replace(',', '.'));
+                if (isNaN(frequency)) {
+                    showMessage("Ungültige Frequenz. Bitte geben Sie eine Zahl ein.", 4000);
+                    return;
+                }
+
+                const stations = allRadioStations.filter(s =>
+                    s.country === country && s.state === state && Math.abs(s.frequency - frequency) < tolerance
+                );
+
+                if (stations.length > 0) {
+                    foundStation = stations[0];
+                    resultElement.innerHTML = `
+                        <p class="text-gray-700 text-xl font-semibold mb-2">Sender gefunden!</p>
+                        <p class="text-gray-900 text-2xl font-bold">${foundStation.name}</p>
+                        <p class="text-gray-600">${foundStation.country}, ${foundStation.state}</p>
+                    `;
+                    geminiFeatures.classList.remove('hidden');
+                } else {
+                    resultElement.innerHTML = `
+                        <p class="text-red-500 text-xl font-semibold mb-2">Kein Sender gefunden.</p>
+                        <p class="text-gray-500">Überprüfen Sie Ihre Eingabe. Möglicherweise ist der gesuchte Sender nicht in der Datenbank.</p>
+                    `;
+                }
+            } catch (error) {
+                console.error("Fehler bei der Suche:", error);
+                resultElement.innerHTML = `
+                    <p class="text-red-500 text-xl font-semibold mb-2">Fehler!</p>
+                    <p class="text-gray-500">Ein unerwarteter Fehler ist aufgetreten.</p>
+                `;
+            } finally {
+                loadingIndicator.style.display = 'none';
+                findButton.disabled = false;
+            }
+        }
+
+        findButton.addEventListener('click', findStation);
+        frequencyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                findStation();
+            }
+        });
+
+        senderInfoButton.addEventListener('click', async () => {
+            if (!foundStation) return;
+            loadingIndicator.style.display = 'block';
+            senderInfoButton.disabled = true;
+
+            const systemPrompt = "Sie sind ein Radiosender-Experte. Geben Sie eine kurze und prägnante Beschreibung des Senders. Nennen Sie die Musikrichtung und das typische Publikum.";
+            const userQuery = `Beschreibe den Radiosender "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}.`;
+
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    tools: [{ "google_search": {} }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    const sources = candidate.groundingMetadata?.groundingAttributions
+                        ?.map(attribution => ({
+                            uri: attribution.web?.uri,
+                            title: attribution.web?.title,
+                        }))
+                        .filter(source => source.uri && source.title) || [];
+
+                    let sourcesHtml = '';
+                    if (sources.length > 0) {
+                        sourcesHtml = `<div class="mt-4 text-xs text-gray-500 text-left">
+                            <p>Quellen:</p>
+                            <ul>
+                                ${sources.map(s => `<li><a href="${s.uri}" target="_blank" class="hover:underline">${s.title}</a></li>`).join('')}
+                            </ul>
+                        </div>`;
+                    }
+
+                    resultElement.innerHTML = `
+                        <p class="text-gray-700 text-xl font-semibold mb-2">${foundStation.name}</p>
+                        <p class="text-gray-600 text-base mb-4">${text}</p>
+                        ${sourcesHtml}
+                    `;
+                } else {
+                    showMessage("Gemini konnte keine Informationen finden.");
+                }
+            } catch (error) {
+                showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
+                console.error("Gemini API Error:", error);
+            } finally {
+                loadingIndicator.style.display = 'none';
+                senderInfoButton.disabled = false;
+            }
+        });
+
+        suggestionsButton.addEventListener('click', async () => {
+            if (!foundStation) return;
+            loadingIndicator.style.display = 'block';
+            suggestionsButton.disabled = true;
+
+            const systemPrompt = "Sie sind ein Musikexperte. Geben Sie eine kurze Liste ähnlicher Radiosender, die der Benutzer basierend auf dem gefundenen Sender mögen könnte. Die Sender müssen im JSON-Format sein.";
+            const userQuery = `Empfehle 3-4 ähnliche Radiosender wie "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}.`;
+
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    tools: [{ "google_search": {} }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    "name": { "type": "STRING" },
+                                    "description": { "type": "STRING" },
+                                    "country": { "type": "STRING" },
+                                },
+                                "propertyOrdering": ["name", "description", "country"]
+                            }
+                        }
+                    }
+                };
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                const suggestions = JSON.parse(jsonText);
+
+                if (suggestions && suggestions.length > 0) {
+                    let suggestionsHtml = `<p class="text-gray-700 text-xl font-semibold mb-2">Ähnliche Sender:</p><ul class="list-disc list-inside text-gray-800">`;
+                    suggestions.forEach(s => {
+                        suggestionsHtml += `<li><strong>${s.name}</strong> - ${s.description} (${s.country})</li>`;
+                    });
+                    suggestionsHtml += `</ul>`;
+                    resultElement.innerHTML = suggestionsHtml;
+                } else {
+                    showMessage("Gemini konnte keine Vorschläge finden.");
+                }
+            } catch (error) {
+                showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
+                console.error("Gemini API Error:", error);
+            } finally {
+                loadingIndicator.style.display = 'none';
+                suggestionsButton.disabled = false;
+            }
+        });
+    </script>
+
+</body>
+</html>
