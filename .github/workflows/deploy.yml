@@ -1,0 +1,25 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Replace API Key
+        run: |
+          # Diese Zeile ersetzt den Platzhalter "$API_KEY"
+          sed -i "s|const API_KEY = \"\$API_KEY\";|const API_KEY = \"${{ secrets.GEMINI_API_KEY }}\";|g" index.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
