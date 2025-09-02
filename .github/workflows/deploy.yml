@@ -17,13 +17,13 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # Ersetze den Platzhalter direkt in der Datei und überschreibe sie
-          sed -i 's/\$API_KEY/${GEMINI_API_KEY}/g' index.html
+          # Nutze doppelte Anführungszeichen, um die Variable zu ersetzen.
+          sed -i "s|\$API_KEY|${GEMINI_API_KEY}|g" index.html
           
-          # Zur Fehlersuche: Gib den Inhalt der modifizierten Datei aus
-          echo "--- Inhalts-Check: index.html nach dem Ersetzen ---"
+          # Zeige den Inhalt der Datei in den Logs, um zu bestätigen, dass es funktioniert hat.
+          echo "--- Inhalt von index.html nach dem Ersetzen ---"
           cat index.html
-          echo "----------------------------------------------------"
+          echo "------------------------------------------------"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
