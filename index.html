@@ -363,7 +363,8 @@
             searchButton.style.display = 'block';
             gameButton.style.display = 'block';
             frequencyInput.value = '';
-
+            
+            // Wenn ein Land ausgewählt ist, fülle das Bundesland-Dropdown-Menü
             if (selectedCountry) {
                 const states = statesByCountry[selectedCountry];
                 if (states) {
@@ -374,6 +375,7 @@
                         stateSelect.appendChild(option);
                     });
                     stateSelect.disabled = false;
+                    stateSelect.removeAttribute('disabled');
                 }
             } else {
                  const option = document.createElement('option');
