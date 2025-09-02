@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiosender-Ratespiel</title>
+    <title>Radiosender-Frequenz-Ratespiel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
@@ -56,7 +56,7 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
 
     <div class="container">
-        <h1 class="text-3xl font-bold text-gray-800 mb-4">Radiosender-Ratespiel</h1>
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Radiosender-Frequenz-Ratespiel</h1>
         <p class="text-gray-600 mb-6">Wählen Sie Land und Bundesland aus, um die Frequenz eines zufälligen Senders zu erraten.</p>
         
         <div class="mb-4">
@@ -91,10 +91,19 @@
             </p>
         </div>
 
+        <div id="coolFeatures" class="hidden mt-8 pt-4 border-t border-gray-200">
+            <button id="diceButton" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 mb-4">
+                🎲 Zufälliger Sender
+            </button>
+            <button id="senderInfoButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
+                🌐 Sender-Info
+            </button>
+        </div>
+
         <div class="mt-8 pt-4 border-t border-gray-200">
             <h3 class="text-xl font-bold text-gray-700 mb-2">Hinweis zur Senderliste</h3>
             <p class="text-sm text-gray-500">
-                Diese Version ist ein einfaches Spiel und verwendet keine externe API.
+                Diese Version ist ein interaktives Spiel und verwendet keine externe API.
             </p>
         </div>
     </div>
@@ -119,61 +128,64 @@
         const frequencyInput = document.getElementById('frequencyInput');
         const resultElement = document.getElementById('result');
         const loadingIndicator = document.getElementById('loadingIndicator');
+        const coolFeatures = document.getElementById('coolFeatures');
+        const diceButton = document.getElementById('diceButton');
+        const senderInfoButton = document.getElementById('senderInfoButton');
 
         // Globale Variablen
-        let targetStation = null;
+        let currentStation = null;
         const tolerance = 0.01;
         
-        // Simulated radio station data
+        // Simulated radio station data with URLs
         const allRadioStations = [
             // Deutschland
-            { frequency: 88.8, name: 'radioeins', country: 'Deutschland', state: 'Berlin' },
-            { frequency: 93.6, name: '104.6 RTL', country: 'Deutschland', state: 'Berlin' },
-            { frequency: 95.8, name: 'rbb 88.8', country: 'Deutschland', state: 'Berlin' },
+            { frequency: 88.8, name: 'radioeins', country: 'Deutschland', state: 'Berlin', url: 'https://www.radioeins.de/' },
+            { frequency: 93.6, name: '104.6 RTL', country: 'Deutschland', state: 'Berlin', url: 'https://www.104.6rtl.com/' },
+            { frequency: 95.8, name: 'rbb 88.8', country: 'Deutschland', state: 'Berlin', url: 'https://www.rbb-online.de/rbb888/' },
             { frequency: 90.0, name: '90elf', country: 'Deutschland', state: 'Berlin' },
-            { frequency: 106.0, name: 'JAM FM', country: 'Deutschland', state: 'Berlin' },
-            { frequency: 107.5, name: 'Deutschlandfunk', country: 'Deutschland', state: 'Überregional' },
-            { frequency: 95.2, name: 'Antenne Bayern', country: 'Deutschland', state: 'Bayern' },
-            { frequency: 89.0, name: 'Bayern 3', country: 'Deutschland', state: 'Bayern' },
-            { frequency: 93.2, name: 'egoFM', country: 'Deutschland', state: 'Bayern' },
-            { frequency: 105.3, name: 'Radio Gong Würzburg', country: 'Deutschland', state: 'Bayern' },
-            { frequency: 97.2, name: 'radio B2', country: 'Deutschland', state: 'Brandenburg' },
-            { frequency: 101.9, name: 'BB Radio', country: 'Deutschland', state: 'Brandenburg' },
-            { frequency: 93.4, name: 'Hit Radio FFH', country: 'Deutschland', state: 'Hessen' },
-            { frequency: 94.0, name: 'harmony.fm', country: 'Deutschland', state: 'Hessen' },
-            { frequency: 99.2, name: 'Radio Hamburg', country: 'Deutschland', state: 'Hamburg' },
-            { frequency: 90.3, name: 'NDR 90,3', country: 'Deutschland', state: 'Hamburg' },
-            { frequency: 94.3, name: 'Radio Hochstift', country: 'Deutschland', state: 'Nordrhein-Westfalen' },
-            { frequency: 102.7, name: 'Radio NRW', country: 'Deutschland', state: 'Nordrhein-Westfalen' },
-            { frequency: 90.1, name: 'bigFM', country: 'Deutschland', state: 'Rheinland-Pfalz' },
-            { frequency: 105.7, name: 'RPR1', country: 'Deutschland', state: 'Rheinland-Pfalz' },
-            { frequency: 100.0, name: 'Radio Regenbogen', country: 'Deutschland', state: 'Baden-Württemberg' },
-            { frequency: 97.1, name: 'SWR1 Baden-Württemberg', country: 'Deutschland', state: 'Baden-Württemberg' },
-            { frequency: 90.8, name: 'MDR Jump', country: 'Deutschland', state: 'Sachsen' },
-            { frequency: 100.8, name: 'Radio PSR', country: 'Deutschland', state: 'Sachsen' },
-            { frequency: 99.4, name: 'Antenne Niedersachsen', country: 'Deutschland', state: 'Niedersachsen' },
-            { frequency: 90.0, name: 'NDR 1 Niedersachsen', country: 'Deutschland', state: 'Niedersachsen' },
-            { frequency: 98.7, name: 'R.SH', country: 'Deutschland', state: 'Schleswig-Holstein' },
-            { frequency: 92.4, name: 'Radio Bremen Eins', country: 'Deutschland', state: 'Bremen' },
-            { frequency: 106.5, name: 'Radio Bremen Vier', country: 'Deutschland', state: 'Bremen' },
-            { frequency: 96.9, name: 'Antenne MV', country: 'Deutschland', state: 'Mecklenburg-Vorpommern' },
-            { frequency: 102.0, name: 'Ostseewelle', country: 'Deutschland', state: 'Mecklenburg-Vorpommern' },
-            { frequency: 100.6, name: 'SR 1', country: 'Deutschland', state: 'Saarland' },
-            { frequency: 93.8, name: 'Radio Salü', country: 'Deutschland', state: 'Saarland' },
-            { frequency: 91.5, name: 'MDR Jump', country: 'Deutschland', state: 'Sachsen-Anhalt' },
-            { frequency: 94.6, name: 'Radio SAW', country: 'Deutschland', state: 'Sachsen-Anhalt' },
-            { frequency: 95.0, name: 'MDR Thüringen', country: 'Deutschland', state: 'Thüringen' },
-            { frequency: 99.0, name: 'Antenne Thüringen', country: 'Deutschland', state: 'Thüringen' },
-            { frequency: 91.7, name: 'Radio Brocken', country: 'Deutschland', state: 'Sachsen-Anhalt' },
-            { frequency: 103.8, name: 'Antenne 1', country: 'Deutschland', state: 'Baden-Württemberg' },
+            { frequency: 106.0, name: 'JAM FM', country: 'Deutschland', state: 'Berlin', url: 'https://www.jamfm.de/' },
+            { frequency: 107.5, name: 'Deutschlandfunk', country: 'Deutschland', state: 'Überregional', url: 'https://www.deutschlandfunk.de/' },
+            { frequency: 95.2, name: 'Antenne Bayern', country: 'Deutschland', state: 'Bayern', url: 'https://www.antenne.de/' },
+            { frequency: 89.0, name: 'Bayern 3', country: 'Deutschland', state: 'Bayern', url: 'https://www.br.de/radio/bayern3/' },
+            { frequency: 93.2, name: 'egoFM', country: 'Deutschland', state: 'Bayern', url: 'https://www.egofm.de/' },
+            { frequency: 105.3, name: 'Radio Gong Würzburg', country: 'Deutschland', state: 'Bayern', url: 'https://www.radiogong.com/' },
+            { frequency: 97.2, name: 'radio B2', country: 'Deutschland', state: 'Brandenburg', url: 'https://www.radiob2.de/' },
+            { frequency: 101.9, name: 'BB Radio', country: 'Deutschland', state: 'Brandenburg', url: 'https://www.bbradio.de/' },
+            { frequency: 93.4, name: 'Hit Radio FFH', country: 'Deutschland', state: 'Hessen', url: 'https://www.ffh.de/' },
+            { frequency: 94.0, name: 'harmony.fm', country: 'Deutschland', state: 'Hessen', url: 'https://www.harmonyfm.de/' },
+            { frequency: 99.2, name: 'Radio Hamburg', country: 'Deutschland', state: 'Hamburg', url: 'https://www.radiohamburg.de/' },
+            { frequency: 90.3, name: 'NDR 90,3', country: 'Deutschland', state: 'Hamburg', url: 'https://www.ndr.de/ndr903/' },
+            { frequency: 94.3, name: 'Radio Hochstift', country: 'Deutschland', state: 'Nordrhein-Westfalen', url: 'https://www.radiohochstift.de/' },
+            { frequency: 102.7, name: 'Radio NRW', country: 'Deutschland', state: 'Nordrhein-Westfalen', url: 'https://www.radionrw.de/' },
+            { frequency: 90.1, name: 'bigFM', country: 'Deutschland', state: 'Rheinland-Pfalz', url: 'https://www.bigfm.de/' },
+            { frequency: 105.7, name: 'RPR1', country: 'Deutschland', state: 'Rheinland-Pfalz', url: 'https://www.rpr1.de/' },
+            { frequency: 100.0, name: 'Radio Regenbogen', country: 'Deutschland', state: 'Baden-Württemberg', url: 'https://www.regenbogen.de/' },
+            { frequency: 97.1, name: 'SWR1 Baden-Württemberg', country: 'Deutschland', state: 'Baden-Württemberg', url: 'https://www.swr.de/swr1-bw/' },
+            { frequency: 90.8, name: 'MDR Jump', country: 'Deutschland', state: 'Sachsen', url: 'https://www.mdr.de/mdr-jump/' },
+            { frequency: 100.8, name: 'Radio PSR', country: 'Deutschland', state: 'Sachsen', url: 'https://www.radiopsr.de/' },
+            { frequency: 99.4, name: 'Antenne Niedersachsen', country: 'Deutschland', state: 'Niedersachsen', url: 'https://www.antenne.com/' },
+            { frequency: 90.0, name: 'NDR 1 Niedersachsen', country: 'Deutschland', state: 'Niedersachsen', url: 'https://www.ndr.de/ndr1niedersachsen/' },
+            { frequency: 98.7, name: 'R.SH', country: 'Deutschland', state: 'Schleswig-Holstein', url: 'https://www.rsh.de/' },
+            { frequency: 92.4, name: 'Radio Bremen Eins', country: 'Deutschland', state: 'Bremen', url: 'https://www.radiobremen.de/bremeneins/' },
+            { frequency: 106.5, name: 'Radio Bremen Vier', country: 'Deutschland', state: 'Bremen', url: 'https://www.radiobremen.de/bremenvier/' },
+            { frequency: 96.9, name: 'Antenne MV', country: 'Deutschland', state: 'Mecklenburg-Vorpommern', url: 'https://www.antennemv.de/' },
+            { frequency: 102.0, name: 'Ostseewelle', country: 'Deutschland', state: 'Mecklenburg-Vorpommern', url: 'https://www.ostseewelle.de/' },
+            { frequency: 100.6, name: 'SR 1', country: 'Deutschland', state: 'Saarland', url: 'https://www.sr.de/sr1/' },
+            { frequency: 93.8, name: 'Radio Salü', country: 'Deutschland', state: 'Saarland', url: 'https://www.salue.de/' },
+            { frequency: 91.5, name: 'MDR Jump', country: 'Deutschland', state: 'Sachsen-Anhalt', url: 'https://www.mdr.de/mdr-jump/' },
+            { frequency: 94.6, name: 'Radio SAW', country: 'Deutschland', state: 'Sachsen-Anhalt', url: 'https://www.radiosaw.de/' },
+            { frequency: 95.0, name: 'MDR Thüringen', country: 'Deutschland', state: 'Thüringen', url: 'https://www.mdr.de/mdr-thueringen/' },
+            { frequency: 99.0, name: 'Antenne Thüringen', country: 'Deutschland', state: 'Thüringen', url: 'https://www.antennethueringen.de/' },
+            { frequency: 91.7, name: 'Radio Brocken', country: 'Deutschland', state: 'Sachsen-Anhalt', url: 'https://www.radio-brocken.de/' },
+            { frequency: 103.8, name: 'Antenne 1', country: 'Deutschland', state: 'Baden-Württemberg', url: 'https://www.antenne1.de/' },
             // Österreich
-            { frequency: 98.4, name: 'Ö3', country: 'Österreich', state: 'Wien' },
-            { frequency: 99.1, name: 'FM4', country: 'Österreich', state: 'Wien' },
-            { frequency: 99.0, name: 'Radio 88.6', country: 'Österreich', state: 'Wien' },
-            { frequency: 103.5, name: 'Radio Wien', country: 'Österreich', state: 'Wien' },
-            { frequency: 105.8, name: 'Radio Arabella', country: 'Österreich', state: 'Wien' },
-            { frequency: 106.5, name: 'Radio Superfly', country: 'Österreich', state: 'Wien' },
-            { frequency: 107.0, name: 'Radio Energy Wien', country: 'Österreich', state: 'Wien' },
+            { frequency: 98.4, name: 'Ö3', country: 'Österreich', state: 'Wien', url: 'https://oe3.orf.at/' },
+            { frequency: 99.1, name: 'FM4', country: 'Österreich', state: 'Wien', url: 'https://fm4.orf.at/' },
+            { frequency: 99.0, name: 'Radio 88.6', country: 'Österreich', state: 'Wien', url: 'https://www.radio886.at/' },
+            { frequency: 103.5, name: 'Radio Wien', country: 'Österreich', state: 'Wien', url: 'https://wien.orf.at/radio/' },
+            { frequency: 105.8, name: 'Radio Arabella', country: 'Österreich', state: 'Wien', url: 'https://www.radioarabella.at/' },
+            { frequency: 106.5, name: 'Radio Superfly', country: 'Österreich', state: 'Wien', url: 'https://superfly.fm/' },
+            { frequency: 107.0, name: 'Radio Energy Wien', country: 'Österreich', state: 'Wien', url: 'https://www.energy.at/' },
             { frequency: 107.0, name: 'Radio Energy Wien - Dance', country: 'Österreich', state: 'Wien' },
             { frequency: 107.0, name: 'Radio Energy Wien - Fitness', country: 'Österreich', state: 'Wien' },
             { frequency: 107.0, name: 'Radio Energy Wien - Hits', country: 'Österreich', state: 'Wien' },
@@ -181,36 +193,36 @@
             { frequency: 107.0, name: 'Radio Energy Wien - Pop', country: 'Österreich', state: 'Wien' },
             { frequency: 107.0, name: 'Radio Energy Wien - R&B', country: 'Österreich', state: 'Wien' },
             { frequency: 107.0, name: 'Radio Energy Wien - Rock', country: 'Österreich', state: 'Wien' },
-            { frequency: 92.0, name: 'Kronehit', country: 'Österreich', state: 'Überregional' },
-            { frequency: 88.8, name: 'Ö3', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 90.5, name: 'Life Radio', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 95.2, name: 'Radio Oberösterreich', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 101.9, name: 'Welle 1', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 93.3, name: 'Radio Tirol', country: 'Österreich', state: 'Tirol' },
-            { frequency: 91.7, name: 'Ö3', country: 'Österreich', state: 'Tirol' },
-            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol' },
-            { frequency: 92.5, name: 'Radio U1 Tirol', country: 'Österreich', state: 'Tirol' },
-            { frequency: 107.5, name: 'Hitradio Ö3', country: 'Österreich', state: 'Tirol' },
-            { frequency: 106.5, name: 'Radio Technikum', country: 'Österreich', state: 'Tirol' },
+            { frequency: 92.0, name: 'Kronehit', country: 'Österreich', state: 'Überregional', url: 'https://www.kronehit.at/' },
+            { frequency: 88.8, name: 'Ö3', country: 'Österreich', state: 'Oberösterreich', url: 'https://oe3.orf.at/' },
+            { frequency: 90.5, name: 'Life Radio', country: 'Österreich', state: 'Oberösterreich', url: 'https://www.liferadio.at/' },
+            { frequency: 95.2, name: 'Radio Oberösterreich', country: 'Österreich', state: 'Oberösterreich', url: 'https://ooe.orf.at/radio/' },
+            { frequency: 101.9, name: 'Welle 1', country: 'Österreich', state: 'Oberösterreich', url: 'https://www.welle1.at/' },
+            { frequency: 93.3, name: 'Radio Tirol', country: 'Österreich', state: 'Tirol', url: 'https://tirol.orf.at/radio/' },
+            { frequency: 91.7, name: 'Ö3', country: 'Österreich', state: 'Tirol', url: 'https://oe3.orf.at/' },
+            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol', url: 'https://www.antennetirol.at/' },
+            { frequency: 92.5, name: 'Radio U1 Tirol', country: 'Österreich', state: 'Tirol', url: 'https://www.u1-radio.at/' },
+            { frequency: 107.5, name: 'Hitradio Ö3', country: 'Österreich', state: 'Tirol', url: 'https://oe3.orf.at/' },
+            { frequency: 106.5, name: 'Radio Technikum', country: 'Österreich', state: 'Tirol', url: 'https://www.technikum-radio.at/' },
             { frequency: 106.5, name: 'Radio Technikum - Hit Classics', country: 'Österreich', state: 'Tirol' },
             { frequency: 106.5, name: 'Radio Technikum - Rock Cockpit', country: 'Österreich', state: 'Tirol' },
             { frequency: 106.5, name: 'Radio Technikum - Smooth Jazz', country: 'Österreich', state: 'Tirol' },
-            { frequency: 97.8, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 99.3, name: 'Radio Graz', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 107.0, name: 'Soundportal', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 106.6, name: 'Radio Helsinki', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 95.7, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland' },
-            { frequency: 94.6, name: 'FM4', country: 'Österreich', state: 'Burgenland' },
-            { frequency: 94.7, name: 'Antenne Kärnten', country: 'Österreich', state: 'Kärnten' },
-            { frequency: 97.9, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten' },
-            { frequency: 101.4, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
-            { frequency: 93.0, name: 'Ö3', country: 'Österreich', state: 'Niederösterreich' },
-            { frequency: 96.7, name: 'Radio Salzburg', country: 'Österreich', state: 'Salzburg' },
-            { frequency: 91.7, name: 'Antenne Salzburg', country: 'Österreich', state: 'Salzburg' },
-            { frequency: 91.3, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol' },
-            { frequency: 99.7, name: 'Antenne Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
-            { frequency: 98.7, name: 'ORF Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
+            { frequency: 97.8, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark', url: 'https://www.antenne.at/' },
+            { frequency: 99.3, name: 'Radio Graz', country: 'Österreich', state: 'Steiermark', url: 'https://www.antenne.at/' },
+            { frequency: 107.0, name: 'Soundportal', country: 'Österreich', state: 'Steiermark', url: 'https://www.soundportal.at/' },
+            { frequency: 106.6, name: 'Radio Helsinki', country: 'Österreich', state: 'Steiermark', url: 'https://www.radiohelsinki.at/' },
+            { frequency: 95.7, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland', url: 'https://burgenland.orf.at/radio/' },
+            { frequency: 94.6, name: 'FM4', country: 'Österreich', state: 'Burgenland', url: 'https://fm4.orf.at/' },
+            { frequency: 94.7, name: 'Antenne Kärnten', country: 'Österreich', state: 'Kärnten', url: 'https://www.antenne.at/' },
+            { frequency: 97.9, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten', url: 'https://kaernten.orf.at/radio/' },
+            { frequency: 101.4, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich', url: 'https://noe.orf.at/radio/' },
+            { frequency: 93.0, name: 'Ö3', country: 'Österreich', state: 'Niederösterreich', url: 'https://oe3.orf.at/' },
+            { frequency: 96.7, name: 'Radio Salzburg', country: 'Österreich', state: 'Salzburg', url: 'https://salzburg.orf.at/radio/' },
+            { frequency: 91.7, name: 'Antenne Salzburg', country: 'Österreich', state: 'Salzburg', url: 'https://www.antenne.at/' },
+            { frequency: 91.3, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark', url: 'https://www.antenne.at/' },
+            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol', url: 'https://www.antennetirol.at/' },
+            { frequency: 99.7, name: 'Antenne Vorarlberg', country: 'Österreich', state: 'Vorarlberg', url: 'https://www.antennevorarlberg.at/' },
+            { frequency: 98.7, name: 'ORF Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg', url: 'https://vorarlberg.orf.at/radio/' },
             { frequency: 90.0, name: 'Freie Welle', country: 'Österreich', state: 'Wien' },
             { frequency: 95.2, name: 'Radio FREI', country: 'Österreich', state: 'Wien' },
             { frequency: 106.4, name: 'Harmonie', country: 'Österreich', state: 'Wien' },
@@ -227,18 +239,18 @@
             { frequency: 92.4, name: 'Radio OP', country: 'Österreich', state: 'Oberösterreich' },
             { frequency: 97.4, name: 'Radio Osttirol', country: 'Österreich', state: 'Tirol' },
             { frequency: 102.3, name: 'Radio PL1', country: 'Österreich', state: 'Kärnten' },
-            { frequency: 97.5, name: 'Ö1', country: 'Österreich', state: 'Oberösterreich' },
+            { frequency: 97.5, name: 'Ö1', country: 'Österreich', state: 'Oberösterreich', url: 'https://oe1.orf.at/' },
             { frequency: 105.7, name: 'Radio RF1', country: 'Österreich', state: 'Niederösterreich' },
             { frequency: 91.4, name: 'Radio Seefunk', country: 'Österreich', state: 'Vorarlberg' },
-            { frequency: 95.5, name: 'Radio Soundportal', country: 'Österreich', state: 'Steiermark' },
+            { frequency: 95.5, name: 'Radio Soundportal', country: 'Österreich', state: 'Steiermark', url: 'https://www.soundportal.at/' },
             { frequency: 95.2, name: 'Radio St. Florian am Inn', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 104.9, name: 'Radio U1 Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 104.9, name: 'Radio U1 Tirol', country: 'Österreich', state: 'Tirol', url: 'https://www.u1-radio.at/' },
             { frequency: 95.4, name: 'Radio Uno', country: 'Österreich', state: 'Wien' },
             { frequency: 98.4, name: 'Radio Val Canale', country: 'Österreich', state: 'Tirol' },
             { frequency: 98.1, name: 'Radio Volksmusik', country: 'Österreich', state: 'Niederösterreich' },
             { frequency: 95.8, name: 'Radio Waltl', country: 'Österreich', state: 'Kärnten' },
             { frequency: 104.9, name: 'Radio Weiss Rot', country: 'Österreich', state: 'Tirol' },
-            { frequency: 107.0, name: 'Radiofabrik', country: 'Österreich', state: 'Salzburg' },
+            { frequency: 107.0, name: 'Radiofabrik', country: 'Österreich', state: 'Salzburg', url: 'https://www.radiofabrik.at/' },
             { frequency: 95.2, name: 'radiomix.at - Kanal 01', country: 'Österreich', state: 'Wien' },
             { frequency: 94.4, name: 'Radio Ypsilon', country: 'Österreich', state: 'Niederösterreich' },
             { frequency: 106.6, name: 'republic.cafe', country: 'Österreich', state: 'Steiermark' },
@@ -260,11 +272,11 @@
             { frequency: 98.4, name: 'VIENNA.AT - Partymix', country: 'Österreich', state: 'Wien' },
             { frequency: 98.4, name: 'Wattens.FM', country: 'Österreich', state: 'Tirol' },
             { frequency: 98.4, name: 'webRadio.Tirol', country: 'Österreich', state: 'Tirol' },
-            { frequency: 101.9, name: 'Welle 1 Graz', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 101.9, name: 'Welle 1 Kärnten', country: 'Österreich', state: 'Kärnten' },
-            { frequency: 101.9, name: 'Welle 1 Oberösterreich', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 101.9, name: 'Welle 1 Salzburg', country: 'Österreich', state: 'Salzburg' },
-            { frequency: 101.9, name: 'Welle 1 Tirol', country: 'Österreich', state: 'Tirol' },
+            { frequency: 101.9, name: 'Welle 1 Graz', country: 'Österreich', state: 'Steiermark', url: 'https://www.welle1.at/' },
+            { frequency: 101.9, name: 'Welle 1 Kärnten', country: 'Österreich', state: 'Kärnten', url: 'https://www.welle1.at/' },
+            { frequency: 101.9, name: 'Welle 1 Oberösterreich', country: 'Österreich', state: 'Oberösterreich', url: 'https://www.welle1.at/' },
+            { frequency: 101.9, name: 'Welle 1 Salzburg', country: 'Österreich', state: 'Salzburg', url: 'https://www.welle1.at/' },
+            { frequency: 101.9, name: 'Welle 1 Tirol', country: 'Österreich', state: 'Tirol', url: 'https://www.welle1.at/' },
             { frequency: 101.9, name: 'Welle 1 Tirol - AMS', country: 'Österreich', state: 'Tirol' },
             { frequency: 101.9, name: 'Welle 1 Tirol - Black', country: 'Österreich', state: 'Tirol' },
             { frequency: 101.9, name: 'Welle 1 Tirol - Club', country: 'Österreich', state: 'Tirol' },
@@ -273,50 +285,51 @@
             { frequency: 101.9, name: 'Welle 1 Tirol - Rock', country: 'Österreich', state: 'Tirol' },
             { frequency: 101.9, name: 'Welle Murtal', country: 'Österreich', state: 'Steiermark' },
             { frequency: 101.9, name: 'WelleFM', country: 'Österreich', state: 'Wien' },
-            { frequency: 106.8, name: 'Freies Radio Salzkammergut', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 101.8, name: 'Ö1', country: 'Österreich', state: 'Überregional' },
-            { frequency: 93.6, name: 'FM4', country: 'Österreich', state: 'Überregional' },
+            { frequency: 106.8, name: 'Freies Radio Salzkammergut', country: 'Österreich', state: 'Oberösterreich', url: 'https://www.freiesradio.at/' },
+            { frequency: 101.8, name: 'Ö1', country: 'Österreich', state: 'Überregional', url: 'https://oe1.orf.at/' },
+            { frequency: 93.6, name: 'FM4', country: 'Österreich', state: 'Überregional', url: 'https://fm4.orf.at/' },
             { frequency: 90.0, name: 'Radio OO', country: 'Österreich', state: 'Oberösterreich' },
-            { frequency: 95.4, name: 'Radio Wien', country: 'Österreich', state: 'Wien' },
-            { frequency: 101.8, name: 'Radio Tirol', country: 'Österreich', state: 'Tirol' },
-            { frequency: 98.7, name: 'Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
-            { frequency: 96.7, name: 'Radio Salzburg', country: 'Österreich', state: 'Salzburg' },
-            { frequency: 91.3, name: 'Radio Steiermark', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 101.4, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
-            { frequency: 94.7, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten' },
-            { frequency: 102.1, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland' },
-            { frequency: 103.1, name: 'Antenne Kärnten', country: 'Österreich', state: 'Kärnten' },
-            { frequency: 91.7, name: 'Antenne Salzburg', country: 'Österreich', state: 'Salzburg' },
-            { frequency: 91.3, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark' },
-            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol' },
-            { frequency: 99.7, name: 'Antenne Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
-            { frequency: 98.7, name: 'ORF Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg' },
-            { frequency: 104.1, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland' },
-            { frequency: 105.2, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
-            { frequency: 105.6, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten' },
-            { frequency: 92.5, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich' },
-            { frequency: 100.2, name: 'Radio Zürisee', country: 'Schweiz', state: 'Zürich' },
-            { frequency: 105.7, name: 'Radio Pilatus', country: 'Schweiz', state: 'Luzern' },
-            { frequency: 106.8, name: 'SRF 1', country: 'Schweiz', state: 'Überregional' },
-            { frequency: 95.9, name: 'Radio 24', country: 'Schweiz', state: 'Zürich' },
-            { frequency: 102.3, name: 'Radio Fribourg', country: 'Schweiz', state: 'Freiburg' },
-            { frequency: 104.0, name: 'Radio Bern 1', country: 'Schweiz', state: 'Bern' },
-            { frequency: 94.5, name: 'Radio Basel', country: 'Schweiz', state: 'Basel-Stadt' },
-            { frequency: 98.7, name: 'Radio Argovia', country: 'Schweiz', state: 'Aargau' },
-            { frequency: 100.0, name: 'RTS La Première', country: 'Schweiz', state: 'Genf' },
-            { frequency: 96.6, name: 'Radio FM1', country: 'Schweiz', state: 'St. Gallen' },
-            { frequency: 101.6, name: 'Radio 32', country: 'Schweiz', state: 'Solothurn' },
-            { frequency: 92.8, name: 'Radio Sunshine', country: 'Schweiz', state: 'Zürich' },
-            { frequency: 103.8, name: 'Radio BeO', country: 'Schweiz', state: 'Bern' },
-            { frequency: 105.0, name: 'SRF 3', country: 'Schweiz', state: 'Zürich' },
-            { frequency: 98.1, name: 'Radio Rottu', country: 'Schweiz', state: 'Wallis' },
-            { frequency: 96.3, name: 'Radio Basilisk', country: 'Schweiz', state: 'Basel-Stadt' },
-            { frequency: 94.2, name: 'Radio Grischa', country: 'Schweiz', state: 'Graubünden' },
-            { frequency: 91.1, name: 'Radio Canal 3', country: 'Schweiz', state: 'Bern' },
-            { frequency: 90.5, name: 'Radio LFM', country: 'Schweiz', state: 'Tessin' },
-            { frequency: 99.5, name: 'Radio SRF Musikwelle', country: 'Schweiz', state: 'Überregional' },
-            { frequency: 102.8, name: 'Radio Fribourg', country: 'Schweiz', state: 'Freiburg' },
-            { frequency: 103.1, name: 'Radio Fréquence Banane', country: 'Schweiz', state: 'Waadt' },
+            { frequency: 95.4, name: 'Radio Wien', country: 'Österreich', state: 'Wien', url: 'https://wien.orf.at/radio/' },
+            { frequency: 101.8, name: 'Radio Tirol', country: 'Österreich', state: 'Tirol', url: 'https://tirol.orf.at/radio/' },
+            { frequency: 98.7, name: 'Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg', url: 'https://vorarlberg.orf.at/radio/' },
+            { frequency: 96.7, name: 'Radio Salzburg', country: 'Österreich', state: 'Salzburg', url: 'https://salzburg.orf.at/radio/' },
+            { frequency: 91.3, name: 'Radio Steiermark', country: 'Österreich', state: 'Steiermark', url: 'https://steiermark.orf.at/radio/' },
+            { frequency: 101.4, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich', url: 'https://noe.orf.at/radio/' },
+            { frequency: 94.7, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten', url: 'https://kaernten.orf.at/radio/' },
+            { frequency: 102.1, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland', url: 'https://burgenland.orf.at/radio/' },
+            { frequency: 103.1, name: 'Antenne Kärnten', country: 'Österreich', state: 'Kärnten', url: 'https://www.antenne.at/' },
+            { frequency: 91.7, name: 'Antenne Salzburg', country: 'Österreich', state: 'Salzburg', url: 'https://www.antenne.at/' },
+            { frequency: 91.3, name: 'Antenne Steiermark', country: 'Österreich', state: 'Steiermark', url: 'https://www.antenne.at/' },
+            { frequency: 105.7, name: 'Antenne Tirol', country: 'Österreich', state: 'Tirol', url: 'https://www.antennetirol.at/' },
+            { frequency: 99.7, name: 'Antenne Vorarlberg', country: 'Österreich', state: 'Vorarlberg', url: 'https://www.antennevorarlberg.at/' },
+            { frequency: 98.7, name: 'ORF Radio Vorarlberg', country: 'Österreich', state: 'Vorarlberg', url: 'https://vorarlberg.orf.at/radio/' },
+            { frequency: 104.1, name: 'Radio Burgenland', country: 'Österreich', state: 'Burgenland', url: 'https://burgenland.orf.at/radio/' },
+            { frequency: 105.2, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich', url: 'https://noe.orf.at/radio/' },
+            { frequency: 105.6, name: 'Radio Kärnten', country: 'Österreich', state: 'Kärnten', url: 'https://kaernten.orf.at/radio/' },
+            { frequency: 92.5, name: 'Radio Niederösterreich', country: 'Österreich', state: 'Niederösterreich', url: 'https://noe.orf.at/radio/' },
+            // Schweiz
+            { frequency: 100.2, name: 'Radio Zürisee', country: 'Schweiz', state: 'Zürich', url: 'https://www.radio.ch/radiozuerisee/' },
+            { frequency: 105.7, name: 'Radio Pilatus', country: 'Schweiz', state: 'Luzern', url: 'https://www.radio.ch/radiopilatus/' },
+            { frequency: 106.8, name: 'SRF 1', country: 'Schweiz', state: 'Überregional', url: 'https://www.srf.ch/radio-srf-1' },
+            { frequency: 95.9, name: 'Radio 24', country: 'Schweiz', state: 'Zürich', url: 'https://www.radio24.ch/' },
+            { frequency: 102.3, name: 'Radio Fribourg', country: 'Schweiz', state: 'Freiburg', url: 'https://www.radiofr.ch/' },
+            { frequency: 104.0, name: 'Radio Bern 1', country: 'Schweiz', state: 'Bern', url: 'https://www.radiobern1.ch/' },
+            { frequency: 94.5, name: 'Radio Basel', country: 'Schweiz', state: 'Basel-Stadt', url: 'https://www.radiobasel.ch/' },
+            { frequency: 98.7, name: 'Radio Argovia', country: 'Schweiz', state: 'Aargau', url: 'https://www.radioargovia.ch/' },
+            { frequency: 100.0, name: 'RTS La Première', country: 'Schweiz', state: 'Genf', url: 'https://www.rts.ch/la-1ere/' },
+            { frequency: 96.6, name: 'Radio FM1', country: 'Schweiz', state: 'St. Gallen', url: 'https://www.radiofm1.ch/' },
+            { frequency: 101.6, name: 'Radio 32', country: 'Schweiz', state: 'Solothurn', url: 'https://www.radio32.ch/' },
+            { frequency: 92.8, name: 'Radio Sunshine', country: 'Schweiz', state: 'Zürich', url: 'https://www.radiosunshine.ch/' },
+            { frequency: 103.8, name: 'Radio BeO', country: 'Schweiz', state: 'Bern', url: 'https://www.radiobeo.ch/' },
+            { frequency: 105.0, name: 'SRF 3', country: 'Schweiz', state: 'Zürich', url: 'https://www.srf.ch/radio-srf-3' },
+            { frequency: 98.1, name: 'Radio Rottu', country: 'Schweiz', state: 'Wallis', url: 'https://www.radiorottu.ch/' },
+            { frequency: 96.3, name: 'Radio Basilisk', country: 'Schweiz', state: 'Basel-Stadt', url: 'https://www.radiobasilisk.ch/' },
+            { frequency: 94.2, name: 'Radio Grischa', country: 'Schweiz', state: 'Graubünden', url: 'https://www.radiogrischa.ch/' },
+            { frequency: 91.1, name: 'Radio Canal 3', country: 'Schweiz', state: 'Bern', url: 'https://www.canal3.ch/' },
+            { frequency: 90.5, name: 'Radio LFM', country: 'Schweiz', state: 'Tessin', url: 'https://www.lfm.ch/' },
+            { frequency: 99.5, name: 'Radio SRF Musikwelle', country: 'Schweiz', state: 'Überregional', url: 'https://www.srf.ch/radio-srf-musikwelle' },
+            { frequency: 102.8, name: 'Radio Fribourg', country: 'Schweiz', state: 'Freiburg', url: 'https://www.radiofr.ch/' },
+            { frequency: 103.1, name: 'Radio Fréquence Banane', country: 'Schweiz', state: 'Waadt', url: 'https://www.frequencebanane.ch/' },
         ];
         
         // Liste der Bundesländer/Kantone pro Land
@@ -338,6 +351,9 @@
             stateSelect.innerHTML = '';
             stateSelect.disabled = true;
             resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
+            coolFeatures.classList.add('hidden');
+            currentStation = null;
+            findButton.textContent = 'Frequenz raten';
 
             if (selectedCountry) {
                 const states = statesByCountry[selectedCountry];
@@ -358,82 +374,130 @@
             }
         }
 
-        // Funktion zur Sendersuche
-        async function findStation() {
+        // Funktion zum Starten des Ratespiels
+        function startGame() {
             const country = countrySelect.value;
             const state = stateSelect.value;
-            const frequencyStr = frequencyInput.value;
-
-            if (!country || !state || !frequencyStr) {
-                showMessage("Bitte füllen Sie alle Felder aus.", 4000);
+            
+            if (!country || !state) {
+                showMessage("Bitte wählen Sie zuerst Land und Bundesland aus.", 4000);
                 return;
             }
 
-            loadingIndicator.style.display = 'block';
-            findButton.disabled = true;
+            const availableStations = allRadioStations.filter(s =>
+                s.country === country && s.state === state
+            );
+            
+            if (availableStations.length === 0) {
+                resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Keine Sender in dieser Region gefunden.</p>`;
+                coolFeatures.classList.add('hidden');
+                return;
+            }
 
-            try {
-                const frequency = parseFloat(frequencyStr.replace(',', '.'));
-                if (isNaN(frequency)) {
-                    showMessage("Ungültige Frequenz. Bitte geben Sie eine Zahl ein.", 4000);
-                    return;
-                }
+            const randomIndex = Math.floor(Math.random() * availableStations.length);
+            currentStation = availableStations[randomIndex];
+            
+            resultElement.innerHTML = `
+                <p class="text-gray-700 text-xl font-semibold mb-2">Rate die Frequenz!</p>
+                <p class="text-gray-600">Ich habe mir einen Sender in ${state}, ${country} ausgedacht.</p>
+            `;
+            coolFeatures.classList.add('hidden');
+        }
 
-                // Initialisiere das Spiel
-                if (!targetStation) {
-                    const availableStations = allRadioStations.filter(s =>
-                        s.country === country && s.state === state
-                    );
-                    if (availableStations.length === 0) {
-                        resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Keine Sender in dieser Region gefunden.</p>`;
-                        return;
-                    }
-                    const randomIndex = Math.floor(Math.random() * availableStations.length);
-                    targetStation = availableStations[randomIndex];
-                    resultElement.innerHTML = `<p class="text-gray-700 text-xl font-semibold mb-2">Rate die Frequenz!</p><p class="text-gray-600">Ich habe mir einen Sender in ${state}, ${country} ausgedacht.</p>`;
-                }
+        // Funktion zur Frequenz-Rateprüfung
+        function checkGuess() {
+            const frequencyStr = frequencyInput.value;
+            if (!currentStation || !frequencyStr) {
+                return;
+            }
 
-                // Vergleich der Frequenzen
-                const diff = Math.abs(targetStation.frequency - frequency);
+            const frequency = parseFloat(frequencyStr.replace(',', '.'));
+            if (isNaN(frequency)) {
+                showMessage("Ungültige Frequenz. Bitte geben Sie eine Zahl ein.", 4000);
+                return;
+            }
 
-                if (diff < tolerance) {
-                    resultElement.innerHTML = `
-                        <p class="text-green-600 text-3xl font-bold mb-2">Richtig!</p>
-                        <p class="text-gray-800 text-xl">Der Sender war: <span class="font-bold">${targetStation.name}</span></p>
-                        <p class="text-gray-600 text-lg">Frequenz: ${targetStation.frequency.toFixed(1)} MHz</p>
-                        <button id="restartButton" class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
-                            Neues Spiel starten
-                        </button>
-                    `;
-                    document.getElementById('restartButton').addEventListener('click', () => {
-                        targetStation = null;
-                        frequencyInput.value = '';
-                        resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
-                    });
-                } else if (frequency < targetStation.frequency) {
-                    resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu niedrig. Versuchen Sie es mit einer höheren.</p>`;
-                } else {
-                    resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu hoch. Versuchen Sie es mit einer niedrigeren.</p>`;
-                }
+            const diff = Math.abs(currentStation.frequency - frequency);
 
-            } catch (error) {
-                console.error("Fehler bei der Suche:", error);
+            if (diff < tolerance) {
                 resultElement.innerHTML = `
-                    <p class="text-red-500 text-xl font-semibold mb-2">Fehler!</p>
-                    <p class="text-gray-500">Ein unerwarteter Fehler ist aufgetreten.</p>
+                    <p class="text-green-600 text-3xl font-bold mb-2">Richtig!</p>
+                    <p class="text-gray-800 text-xl">Der Sender war: <span class="font-bold">${currentStation.name}</span></p>
+                    <p class="text-gray-600 text-lg">Frequenz: ${currentStation.frequency.toFixed(1)} MHz</p>
+                    <button id="restartButton" class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
+                        Neues Spiel starten
+                    </button>
                 `;
-            } finally {
-                loadingIndicator.style.display = 'none';
-                findButton.disabled = false;
+                document.getElementById('restartButton').addEventListener('click', () => {
+                    currentStation = null;
+                    frequencyInput.value = '';
+                    resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
+                    findButton.textContent = 'Frequenz raten';
+                });
+            } else if (frequency < currentStation.frequency) {
+                resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu niedrig. Versuchen Sie es mit einer höheren.</p>`;
+            } else {
+                resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu hoch. Versuchen Sie es mit einer niedrigeren.</p>`;
             }
         }
+        
+        // Funktion zum Anzeigen eines zufälligen Senders
+        diceButton.addEventListener('click', () => {
+            const country = countrySelect.value;
+            const state = stateSelect.value;
+
+            if (!country || !state) {
+                showMessage("Bitte wählen Sie zuerst Land und Bundesland aus.", 4000);
+                return;
+            }
+
+            const availableStations = allRadioStations.filter(s =>
+                s.country === country && s.state === state
+            );
+            
+            if (availableStations.length === 0) {
+                resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Keine Sender in dieser Region gefunden.</p>`;
+                coolFeatures.classList.add('hidden');
+                return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * availableStations.length);
+            currentStation = availableStations[randomIndex];
+
+            resultElement.innerHTML = `
+                <p class="text-gray-700 text-xl font-semibold mb-2">Zufälliger Sender gefunden!</p>
+                <p class="text-gray-900 text-2xl font-bold">${currentStation.name}</p>
+                <p class="text-gray-600">Frequenz: ${currentStation.frequency.toFixed(1)} MHz</p>
+            `;
+            coolFeatures.classList.remove('hidden');
+        });
+
+        // Event Listener für Sender-Info-Button
+        senderInfoButton.addEventListener('click', () => {
+            if (currentStation && currentStation.url) {
+                window.open(currentStation.url, '_blank');
+            } else {
+                showMessage("Für diesen Radiosender gibt es leider keine Webseite.");
+            }
+        });
+
 
         // Initialisierung
         countrySelect.addEventListener('change', updateStateSelect);
-        findButton.addEventListener('click', findStation);
+        findButton.addEventListener('click', () => {
+            if (!currentStation) {
+                startGame();
+            } else {
+                checkGuess();
+            }
+        });
         frequencyInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                findStation();
+                if (!currentStation) {
+                    startGame();
+                } else {
+                    checkGuess();
+                }
             }
         });
     </script>
