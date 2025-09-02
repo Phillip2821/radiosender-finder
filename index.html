@@ -91,7 +91,7 @@
             </p>
         </div>
 
-        <div id="geminiFeatures" class="hidden mt-8 pt-4 border-t border-gray-200">
+        <div class="mt-8 pt-4 border-t border-gray-200">
             <button id="factButton" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
                 💡 Radio-Fakt
             </button>
@@ -109,7 +109,7 @@
 
     <script>
         // Setze hier deinen Gemini API-Schlüssel ein.
-        const API_KEY = 'AIzaSyBErppBNAJcJxI1TAHogEB3cVWPieipEkM';
+        const API_KEY = 'DEIN_API_SCHLÜSSEL_HIER';
 
         // Funktion zum Anzeigen von Nachrichten
         function showMessage(message, duration = 3000) {
@@ -128,7 +128,6 @@
         const frequencyInput = document.getElementById('frequencyInput');
         const resultElement = document.getElementById('result');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const geminiFeatures = document.getElementById('geminiFeatures');
         const factButton = document.getElementById('factButton');
 
         // Globale Variablen
@@ -348,7 +347,6 @@
             const selectedCountry = countrySelect.value;
             stateSelect.innerHTML = '';
             stateSelect.disabled = true;
-            geminiFeatures.classList.add('hidden');
             resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
 
             if (selectedCountry) {
@@ -383,7 +381,6 @@
 
             loadingIndicator.style.display = 'block';
             resultElement.innerHTML = '';
-            geminiFeatures.classList.add('hidden');
             findButton.disabled = true;
             foundStation = null;
 
@@ -405,7 +402,6 @@
                         <p class="text-gray-900 text-2xl font-bold">${foundStation.name}</p>
                         <p class="text-gray-600">${foundStation.country}, ${foundStation.state}</p>
                     `;
-                    geminiFeatures.classList.remove('hidden');
                 } else {
                     resultElement.innerHTML = `
                         <p class="text-red-500 text-xl font-semibold mb-2">Kein Sender gefunden.</p>
@@ -425,12 +421,9 @@
         }
 
         // Allgemeine Funktion für Gemini API-Anfragen
-        async function fetchGeminiData(userQuery, mimeType = "text/plain") {
+        async function fetchGeminiData(userQuery) {
             const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                generationConfig: {
-                    responseMimeType: mimeType,
-                }
+                contents: [{ parts: [{ text: userQuery }] }]
             };
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
             
