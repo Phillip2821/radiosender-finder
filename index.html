@@ -359,12 +359,11 @@
             resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
             coolFeatures.classList.add('hidden-feature');
             currentStation = null;
-            findButton.style.display = 'none';
             searchButton.style.display = 'block';
             gameButton.style.display = 'block';
             frequencyInput.value = '';
-            
-            // Wenn ein Land ausgewählt ist, fülle das Bundesland-Dropdown-Menü
+
+            // Wenn ein Land ausgewählt ist, fülle das Bundesland-Dropdown-Menü und aktiviere es
             if (selectedCountry) {
                 const states = statesByCountry[selectedCountry];
                 if (states) {
@@ -375,7 +374,6 @@
                         stateSelect.appendChild(option);
                     });
                     stateSelect.disabled = false;
-                    stateSelect.removeAttribute('disabled');
                 }
             } else {
                  const option = document.createElement('option');
@@ -417,8 +415,14 @@
             coolFeatures.classList.add('hidden-feature');
             searchButton.style.display = 'none';
             gameButton.style.display = 'none';
-            findButton.style.display = 'block';
-            findButton.textContent = 'Frequenz raten';
+            
+            // Neuer 'Raten' Button
+            const guessButton = document.createElement('button');
+            guessButton.id = 'guessButton';
+            guessButton.textContent = 'Frequenz raten';
+            guessButton.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 mt-4';
+            resultElement.appendChild(guessButton);
+            guessButton.addEventListener('click', checkGuess);
         }
 
         // Funktion zur Frequenz-Rateprüfung
@@ -453,7 +457,6 @@
                     resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
                     searchButton.style.display = 'block';
                     gameButton.style.display = 'block';
-                    findButton.style.display = 'none';
                     coolFeatures.classList.add('hidden-feature');
                 });
             } else if (frequency < currentStation.frequency) {
@@ -523,7 +526,6 @@
         // Event Listener für die Buttons
         searchButton.addEventListener('click', searchStation);
         gameButton.addEventListener('click', startGame);
-        findButton.addEventListener('click', checkGuess);
         
         // Event Listener für die Frequenz-Eingabe (Enter-Taste)
         frequencyInput.addEventListener('keypress', (e) => {
@@ -538,10 +540,7 @@
         
         // Initialisierung des Bundesland-Dropdown-Menüs
         countrySelect.addEventListener('change', updateStateSelect);
-        updateStateSelect(); // Initialer Aufruf zum Einrichten des UI
-        
-        // Verstecke den "Frequenz raten"-Button am Anfang
-        findButton.style.display = 'none';
+        updateStateSelect();
     </script>
 </body>
 </html>
