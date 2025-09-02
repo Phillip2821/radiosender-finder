@@ -17,18 +17,14 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # Finde die Zeile mit dem API-Schlüssel-Platzhalter
-          API_KEY_LINE="const API_KEY = \"\$API_KEY\";"
+          # Lese den Inhalt von index.html
+          html_content=$(cat index.html)
 
-          # Schreibe den korrekten Code mit dem Secret
-          NEW_API_KEY_LINE="const API_KEY = \"${{ secrets.GEMINI_API_KEY }}\";"
+          # Ersetze den Platzhalter mit dem Secret
+          updated_html_content=${html_content//\$API_KEY/${{ secrets.GEMINI_API_KEY }}}
 
-          # Erstelle eine temporäre Datei und ersetze den Platzhalter
-          cp index.html index.tmp.html
-          sed -i "s|${API_KEY_LINE}|${NEW_API_KEY_LINE}|g" index.tmp.html
-
-          # Kopiere die temporäre Datei zurück
-          mv index.tmp.html index.html
+          # Schreibe den aktualisierten Inhalt zurück in die Datei
+          echo "$updated_html_content" > index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
