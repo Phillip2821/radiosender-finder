@@ -14,9 +14,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Replace API Key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # Diese Zeile ersetzt den Platzhalter "$API_KEY"
-          sed -i "s|const API_KEY = \"\$API_KEY\";|const API_KEY = \"${{ secrets.GEMINI_API_KEY }}\";|g" index.html
+          # Finde die Zeile mit dem API-Schlüssel-Platzhalter
+          API_KEY_LINE="const API_KEY = \"\$API_KEY\";"
+
+          # Schreibe den korrekten Code mit dem Secret
+          NEW_API_KEY_LINE="const API_KEY = \"${{ secrets.GEMINI_API_KEY }}\";"
+
+          # Erstelle eine temporäre Datei und ersetze den Platzhalter
+          cp index.html index.tmp.html
+          sed -i "s|${API_KEY_LINE}|${NEW_API_KEY_LINE}|g" index.tmp.html
+
+          # Kopiere die temporäre Datei zurück
+          mv index.tmp.html index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
