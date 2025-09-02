@@ -458,6 +458,10 @@
                     searchButton.style.display = 'block';
                     gameButton.style.display = 'block';
                     coolFeatures.classList.add('hidden-feature');
+                    
+                    // Entferne den dynamischen Ratespiel-Button
+                    const guessButton = document.getElementById('guessButton');
+                    if(guessButton) guessButton.remove();
                 });
             } else if (frequency < currentStation.frequency) {
                 resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu niedrig. Versuchen Sie es mit einer höheren.</p>`;
@@ -531,7 +535,8 @@
         frequencyInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 if (isGameMode) {
-                    checkGuess();
+                    const guessButton = document.getElementById('guessButton');
+                    if(guessButton) guessButton.click();
                 } else {
                     searchStation();
                 }
