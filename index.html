@@ -91,9 +91,12 @@
             </p>
         </div>
 
-        <div class="mt-8 pt-4 border-t border-gray-200">
-            <button id="factButton" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
-                💡 Radio-Fakt
+        <div id="geminiFeatures" class="hidden mt-8 pt-4 border-t border-gray-200">
+            <button id="senderInfoButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 mb-4">
+                ✨ Sender-Info
+            </button>
+            <button id="suggestionsButton" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
+                ✨ Vorschläge
             </button>
         </div>
 
@@ -128,7 +131,9 @@
         const frequencyInput = document.getElementById('frequencyInput');
         const resultElement = document.getElementById('result');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const factButton = document.getElementById('factButton');
+        const geminiFeatures = document.getElementById('geminiFeatures');
+        const senderInfoButton = document.getElementById('senderInfoButton');
+        const suggestionsButton = document.getElementById('suggestionsButton');
 
         // Globale Variablen
         let foundStation = null;
@@ -347,6 +352,7 @@
             const selectedCountry = countrySelect.value;
             stateSelect.innerHTML = '';
             stateSelect.disabled = true;
+            geminiFeatures.classList.add('hidden');
             resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
 
             if (selectedCountry) {
@@ -381,6 +387,7 @@
 
             loadingIndicator.style.display = 'block';
             resultElement.innerHTML = '';
+            geminiFeatures.classList.add('hidden');
             findButton.disabled = true;
             foundStation = null;
 
@@ -402,6 +409,7 @@
                         <p class="text-gray-900 text-2xl font-bold">${foundStation.name}</p>
                         <p class="text-gray-600">${foundStation.country}, ${foundStation.state}</p>
                     `;
+                    geminiFeatures.classList.remove('hidden');
                 } else {
                     resultElement.innerHTML = `
                         <p class="text-red-500 text-xl font-semibold mb-2">Kein Sender gefunden.</p>
@@ -421,9 +429,12 @@
         }
 
         // Allgemeine Funktion für Gemini API-Anfragen
-        async function fetchGeminiData(userQuery) {
+        async function fetchGeminiData(userQuery, mimeType = "text/plain") {
             const payload = {
-                contents: [{ parts: [{ text: userQuery }] }]
+                contents: [{ parts: [{ text: userQuery }] }],
+                generationConfig: {
+                    responseMimeType: mimeType,
+                }
             };
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
             
@@ -442,30 +453,66 @@
             return result.candidates?.[0]?.content?.parts?.[0]?.text;
         }
 
-        // Neue Funktion zur Generierung eines Radio-Fakts
-        factButton.addEventListener('click', async () => {
+        // Event Listener für Sender-Info-Button
+        senderInfoButton.addEventListener('click', async () => {
+            if (!foundStation) return;
             loadingIndicator.style.display = 'block';
-            factButton.disabled = true;
+            senderInfoButton.disabled = true;
+            suggestionsButton.disabled = true;
             resultElement.innerHTML = `<p class="text-gray-500">Sende Anfrage an Gemini...</p>`;
 
             try {
-                const userQuery = `Nenne einen kurzen, verblüffenden oder lustigen Fakt über das Radio, seine Geschichte oder Radiosender weltweit. Antworte in einem einfachen Satz.`;
+                const userQuery = `Beschreibe den Radiosender "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}. Nenne die Musikrichtung, das typische Publikum und ein paar bekannte Sendungen oder Moderatoren.`;
                 const text = await fetchGeminiData(userQuery);
 
                 if (text) {
                     resultElement.innerHTML = `
-                        <p class="text-gray-700 text-xl font-semibold mb-2">Wussten Sie schon?</p>
-                        <p class="text-gray-600 text-base mt-4">${text}</p>
+                        <p class="text-gray-700 text-xl font-semibold mb-2">${foundStation.name}</p>
+                        <p class="text-gray-600 text-base mt-4">${text.replace(/\n/g, '<br>')}</p>
                     `;
                 } else {
-                    showMessage("Gemini konnte keinen Fakt finden.");
+                    showMessage("Gemini konnte keine Informationen finden.");
                 }
             } catch (error) {
                 showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
                 console.error("Gemini API Error:", error);
             } finally {
                 loadingIndicator.style.display = 'none';
-                factButton.disabled = false;
+                senderInfoButton.disabled = false;
+                suggestionsButton.disabled = false;
+            }
+        });
+
+        // Event Listener für Vorschläge-Button
+        suggestionsButton.addEventListener('click', async () => {
+            if (!foundStation) return;
+            loadingIndicator.style.display = 'block';
+            senderInfoButton.disabled = true;
+            suggestionsButton.disabled = true;
+            resultElement.innerHTML = `<p class="text-gray-500">Sende Anfrage an Gemini...</p>`;
+
+            try {
+                const userQuery = `Empfehle 3-4 ähnliche Radiosender wie "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}. Gib nur die Empfehlungen als JSON-Array zurück. Jeder Eintrag soll ein Objekt mit den Schlüsseln "name", "description" und "country" sein.`;
+                const jsonText = await fetchGeminiData(userQuery, "application/json");
+                const suggestions = JSON.parse(jsonText);
+
+                if (suggestions && suggestions.length > 0) {
+                    let suggestionsHtml = `<p class="text-gray-700 text-xl font-semibold mb-2">Ähnliche Sender:</p><ul class="list-disc list-inside text-gray-800">`;
+                    suggestions.forEach(s => {
+                        suggestionsHtml += `<li><strong>${s.name}</strong> - ${s.description} (${s.country})</li>`;
+                    });
+                    suggestionsHtml += `</ul>`;
+                    resultElement.innerHTML = suggestionsHtml;
+                } else {
+                    showMessage("Gemini konnte keine Vorschläge finden.");
+                }
+            } catch (error) {
+                showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
+                console.error("Gemini API Error:", error);
+            } finally {
+                loadingIndicator.style.display = 'none';
+                senderInfoButton.disabled = false;
+                suggestionsButton.disabled = false;
             }
         });
 
