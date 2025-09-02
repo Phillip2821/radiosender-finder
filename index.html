@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiosender-Finder</title>
+    <title>Radiosender-Ratespiel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
@@ -56,8 +56,8 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
 
     <div class="container">
-        <h1 class="text-3xl font-bold text-gray-800 mb-4">Radiosender-Finder (API-Version)</h1>
-        <p class="text-gray-600 mb-6">Wählen Sie Land und Bundesland aus und geben Sie eine Radiofrequenz in MHz ein.</p>
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Radiosender-Ratespiel</h1>
+        <p class="text-gray-600 mb-6">Wählen Sie Land und Bundesland aus, um die Frequenz eines zufälligen Senders zu erraten.</p>
         
         <div class="mb-4">
             <select id="countrySelect" class="w-full px-4 py-3 text-lg text-gray-700 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
@@ -80,7 +80,7 @@
         </div>
         
         <button id="findButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
-            Sender finden
+            Frequenz raten
         </button>
 
         <div id="loadingIndicator" class="loading-spinner mt-4"></div>
@@ -91,19 +91,10 @@
             </p>
         </div>
 
-        <div id="geminiFeatures" class="hidden mt-8 pt-4 border-t border-gray-200">
-            <button id="senderInfoButton" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 mb-4">
-                ✨ Sender-Info
-            </button>
-            <button id="suggestionsButton" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
-                ✨ Vorschläge
-            </button>
-        </div>
-
         <div class="mt-8 pt-4 border-t border-gray-200">
             <h3 class="text-xl font-bold text-gray-700 mb-2">Hinweis zur Senderliste</h3>
             <p class="text-sm text-gray-500">
-                Diese Version simuliert die Abfrage einer externen Datenbank (API), um eine größere Liste von Sendern zu durchsuchen.
+                Diese Version ist ein einfaches Spiel und verwendet keine externe API.
             </p>
         </div>
     </div>
@@ -111,9 +102,6 @@
     <div id="message-box" class="message-box"></div>
 
     <script>
-        // Setze hier deinen Gemini API-Schlüssel ein.
-        const API_KEY = 'DEIN_API_SCHLÜSSEL_HIER';
-
         // Funktion zum Anzeigen von Nachrichten
         function showMessage(message, duration = 3000) {
             const msgBox = document.getElementById('message-box');
@@ -131,12 +119,9 @@
         const frequencyInput = document.getElementById('frequencyInput');
         const resultElement = document.getElementById('result');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const geminiFeatures = document.getElementById('geminiFeatures');
-        const senderInfoButton = document.getElementById('senderInfoButton');
-        const suggestionsButton = document.getElementById('suggestionsButton');
 
         // Globale Variablen
-        let foundStation = null;
+        let targetStation = null;
         const tolerance = 0.01;
         
         // Simulated radio station data
@@ -352,7 +337,6 @@
             const selectedCountry = countrySelect.value;
             stateSelect.innerHTML = '';
             stateSelect.disabled = true;
-            geminiFeatures.classList.add('hidden');
             resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
 
             if (selectedCountry) {
@@ -386,10 +370,7 @@
             }
 
             loadingIndicator.style.display = 'block';
-            resultElement.innerHTML = '';
-            geminiFeatures.classList.add('hidden');
             findButton.disabled = true;
-            foundStation = null;
 
             try {
                 const frequency = parseFloat(frequencyStr.replace(',', '.'));
@@ -398,24 +379,43 @@
                     return;
                 }
 
-                const stations = allRadioStations.filter(s =>
-                    s.country === country && s.state === state && Math.abs(s.frequency - frequency) < tolerance
-                );
-
-                if (stations.length > 0) {
-                    foundStation = stations[0];
-                    resultElement.innerHTML = `
-                        <p class="text-gray-700 text-xl font-semibold mb-2">Sender gefunden!</p>
-                        <p class="text-gray-900 text-2xl font-bold">${foundStation.name}</p>
-                        <p class="text-gray-600">${foundStation.country}, ${foundStation.state}</p>
-                    `;
-                    geminiFeatures.classList.remove('hidden');
-                } else {
-                    resultElement.innerHTML = `
-                        <p class="text-red-500 text-xl font-semibold mb-2">Kein Sender gefunden.</p>
-                        <p class="text-gray-500">Überprüfen Sie Ihre Eingabe. Möglicherweise ist der gesuchte Sender nicht in der Datenbank.</p>
-                    `;
+                // Initialisiere das Spiel
+                if (!targetStation) {
+                    const availableStations = allRadioStations.filter(s =>
+                        s.country === country && s.state === state
+                    );
+                    if (availableStations.length === 0) {
+                        resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Keine Sender in dieser Region gefunden.</p>`;
+                        return;
+                    }
+                    const randomIndex = Math.floor(Math.random() * availableStations.length);
+                    targetStation = availableStations[randomIndex];
+                    resultElement.innerHTML = `<p class="text-gray-700 text-xl font-semibold mb-2">Rate die Frequenz!</p><p class="text-gray-600">Ich habe mir einen Sender in ${state}, ${country} ausgedacht.</p>`;
                 }
+
+                // Vergleich der Frequenzen
+                const diff = Math.abs(targetStation.frequency - frequency);
+
+                if (diff < tolerance) {
+                    resultElement.innerHTML = `
+                        <p class="text-green-600 text-3xl font-bold mb-2">Richtig!</p>
+                        <p class="text-gray-800 text-xl">Der Sender war: <span class="font-bold">${targetStation.name}</span></p>
+                        <p class="text-gray-600 text-lg">Frequenz: ${targetStation.frequency.toFixed(1)} MHz</p>
+                        <button id="restartButton" class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
+                            Neues Spiel starten
+                        </button>
+                    `;
+                    document.getElementById('restartButton').addEventListener('click', () => {
+                        targetStation = null;
+                        frequencyInput.value = '';
+                        resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
+                    });
+                } else if (frequency < targetStation.frequency) {
+                    resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu niedrig. Versuchen Sie es mit einer höheren.</p>`;
+                } else {
+                    resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu hoch. Versuchen Sie es mit einer niedrigeren.</p>`;
+                }
+
             } catch (error) {
                 console.error("Fehler bei der Suche:", error);
                 resultElement.innerHTML = `
@@ -427,94 +427,6 @@
                 findButton.disabled = false;
             }
         }
-
-        // Allgemeine Funktion für Gemini API-Anfragen
-        async function fetchGeminiData(userQuery, mimeType = "text/plain") {
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                generationConfig: {
-                    responseMimeType: mimeType,
-                }
-            };
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
-            
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || `API-Anfrage fehlgeschlagen mit Status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            return result.candidates?.[0]?.content?.parts?.[0]?.text;
-        }
-
-        // Event Listener für Sender-Info-Button
-        senderInfoButton.addEventListener('click', async () => {
-            if (!foundStation) return;
-            loadingIndicator.style.display = 'block';
-            senderInfoButton.disabled = true;
-            suggestionsButton.disabled = true;
-            resultElement.innerHTML = `<p class="text-gray-500">Sende Anfrage an Gemini...</p>`;
-
-            try {
-                const userQuery = `Beschreibe den Radiosender "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}. Nenne die Musikrichtung, das typische Publikum und ein paar bekannte Sendungen oder Moderatoren.`;
-                const text = await fetchGeminiData(userQuery);
-
-                if (text) {
-                    resultElement.innerHTML = `
-                        <p class="text-gray-700 text-xl font-semibold mb-2">${foundStation.name}</p>
-                        <p class="text-gray-600 text-base mt-4">${text.replace(/\n/g, '<br>')}</p>
-                    `;
-                } else {
-                    showMessage("Gemini konnte keine Informationen finden.");
-                }
-            } catch (error) {
-                showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
-                console.error("Gemini API Error:", error);
-            } finally {
-                loadingIndicator.style.display = 'none';
-                senderInfoButton.disabled = false;
-                suggestionsButton.disabled = false;
-            }
-        });
-
-        // Event Listener für Vorschläge-Button
-        suggestionsButton.addEventListener('click', async () => {
-            if (!foundStation) return;
-            loadingIndicator.style.display = 'block';
-            senderInfoButton.disabled = true;
-            suggestionsButton.disabled = true;
-            resultElement.innerHTML = `<p class="text-gray-500">Sende Anfrage an Gemini...</p>`;
-
-            try {
-                const userQuery = `Empfehle 3-4 ähnliche Radiosender wie "${foundStation.name}" in ${foundStation.country}, ${foundStation.state}. Gib nur die Empfehlungen als JSON-Array zurück. Jeder Eintrag soll ein Objekt mit den Schlüsseln "name", "description" und "country" sein.`;
-                const jsonText = await fetchGeminiData(userQuery, "application/json");
-                const suggestions = JSON.parse(jsonText);
-
-                if (suggestions && suggestions.length > 0) {
-                    let suggestionsHtml = `<p class="text-gray-700 text-xl font-semibold mb-2">Ähnliche Sender:</p><ul class="list-disc list-inside text-gray-800">`;
-                    suggestions.forEach(s => {
-                        suggestionsHtml += `<li><strong>${s.name}</strong> - ${s.description} (${s.country})</li>`;
-                    });
-                    suggestionsHtml += `</ul>`;
-                    resultElement.innerHTML = suggestionsHtml;
-                } else {
-                    showMessage("Gemini konnte keine Vorschläge finden.");
-                }
-            } catch (error) {
-                showMessage("Ein Fehler bei der API-Anfrage ist aufgetreten.");
-                console.error("Gemini API Error:", error);
-            } finally {
-                loadingIndicator.style.display = 'none';
-                senderInfoButton.disabled = false;
-                suggestionsButton.disabled = false;
-            }
-        });
 
         // Initialisierung
         countrySelect.addEventListener('change', updateStateSelect);
