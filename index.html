@@ -140,6 +140,8 @@
         // Globale Variablen
         let currentStation = null;
         let isGameMode = false;
+        let guessCount = 0; // Neuer Zähler für Versuche
+        const maxGuesses = 5; // Maximale Anzahl an Versuchen
         const tolerance = 0.01;
         
         // Simulated radio station data with URLs
@@ -390,7 +392,7 @@
             const state = stateSelect.value;
             
             if (!country || !state || state.startsWith('Bitte')) {
-                showMessage("Bitte wählen Sie zuerst ein gültiges Land und Bundesland aus.", 4000);
+                resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Bitte wählen Sie zuerst ein Land und Bundesland aus.</p>`;
                 return;
             }
 
@@ -407,10 +409,11 @@
             const randomIndex = Math.floor(Math.random() * availableStations.length);
             currentStation = availableStations[randomIndex];
             isGameMode = true;
+            guessCount = 0; // Spiel neu starten
             
             resultElement.innerHTML = `
                 <p class="text-gray-700 text-xl font-semibold mb-2">Ratespiel gestartet!</p>
-                <p class="text-gray-600">Ich habe mir einen Sender in ${state}, ${country} ausgedacht. Versuchen Sie, die Frequenz zu erraten.</p>
+                <p class="text-gray-600">Ich habe mir einen Sender in ${state}, ${country} ausgedacht. Sie haben ${maxGuesses} Versuche.</p>
             `;
             coolFeatures.classList.add('hidden-feature');
             searchButton.style.display = 'none';
@@ -429,17 +432,20 @@
         function checkGuess() {
             const frequencyStr = frequencyInput.value;
             if (!currentStation || !frequencyStr) {
-                showMessage("Bitte geben Sie eine Frequenz ein.", 4000);
+                resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Bitte geben Sie eine Frequenz ein.</p>`;
                 return;
             }
 
             const frequency = parseFloat(frequencyStr.replace(',', '.'));
             if (isNaN(frequency)) {
-                showMessage("Ungültige Frequenz. Bitte geben Sie eine Zahl ein.", 4000);
+                resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Ungültige Frequenz. Bitte geben Sie eine Zahl ein.</p>`;
                 return;
             }
 
+            guessCount++; // Versuchszähler erhöhen
+
             const diff = Math.abs(currentStation.frequency - frequency);
+            const guessesLeft = maxGuesses - guessCount;
 
             if (diff < tolerance) {
                 resultElement.innerHTML = `
@@ -458,37 +464,55 @@
                     searchButton.style.display = 'block';
                     gameButton.style.display = 'block';
                     coolFeatures.classList.add('hidden-feature');
-                    
-                    // Entferne den dynamischen Ratespiel-Button
+                    const guessButton = document.getElementById('guessButton');
+                    if(guessButton) guessButton.remove();
+                });
+            } else if (guessCount >= maxGuesses) {
+                 resultElement.innerHTML = `
+                    <p class="text-red-600 text-3xl font-bold mb-2">Spiel vorbei!</p>
+                    <p class="text-gray-800 text-xl">Sie haben keine Versuche mehr.</p>
+                    <p class="text-gray-600 text-lg">Die richtige Frequenz für ${currentStation.name} war: <span class="font-bold">${currentStation.frequency.toFixed(1)} MHz</span></p>
+                    <button id="restartButton" class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105">
+                        Neues Spiel starten
+                    </button>
+                `;
+                document.getElementById('restartButton').addEventListener('click', () => {
+                    isGameMode = false;
+                    currentStation = null;
+                    frequencyInput.value = '';
+                    resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
+                    searchButton.style.display = 'block';
+                    gameButton.style.display = 'block';
+                    coolFeatures.classList.add('hidden-feature');
                     const guessButton = document.getElementById('guessButton');
                     if(guessButton) guessButton.remove();
                 });
             } else if (frequency < currentStation.frequency) {
-                resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu niedrig. Versuchen Sie es mit einer höheren.</p>`;
+                resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu niedrig. Sie haben noch ${guessesLeft} Versuche.</p>`;
             } else {
-                resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu hoch. Versuchen Sie es mit einer niedrigeren.</p>`;
+                resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu hoch. Sie haben noch ${guessesLeft} Versuche.</p>`;
             }
         }
         
-        // Funktion zum Suchen eines zufälligen Senders
+        // Funktion zum Suchen
         function searchStation() {
             const country = countrySelect.value;
             const state = stateSelect.value;
             const frequencyStr = frequencyInput.value;
 
             if (!country || !state || state.startsWith('Bitte')) {
-                showMessage("Bitte wählen Sie zuerst ein gültiges Land und Bundesland aus.", 4000);
+                resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Bitte wählen Sie ein Land und Bundesland aus.</p>`;
                 return;
             }
 
             if (!frequencyStr) {
-                 showMessage("Bitte geben Sie eine Frequenz ein.", 4000);
+                 resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Bitte geben Sie eine Frequenz ein.</p>`;
                  return;
             }
 
             const frequency = parseFloat(frequencyStr.replace(',', '.'));
             if (isNaN(frequency)) {
-                showMessage("Ungültige Frequenz. Bitte geben Sie eine Zahl ein.", 4000);
+                resultElement.innerHTML = `<p class="text-red-500 text-xl font-semibold mb-2">Ungültige Frequenz. Bitte geben Sie eine Zahl ein.</p>`;
                 return;
             }
 
