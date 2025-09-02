@@ -355,7 +355,7 @@
         function updateStateSelect() {
             const selectedCountry = countrySelect.value;
             stateSelect.innerHTML = '';
-            stateSelect.disabled = true;
+            
             resultElement.innerHTML = `<p class="text-gray-500 text-lg">Das Ergebnis wird hier angezeigt.</p>`;
             coolFeatures.classList.add('hidden-feature');
             currentStation = null;
@@ -380,6 +380,7 @@
                  option.value = "";
                  option.textContent = "Bitte Bundesland wählen...";
                  stateSelect.appendChild(option);
+                 stateSelect.disabled = true;
             }
         }
 
@@ -388,8 +389,8 @@
             const country = countrySelect.value;
             const state = stateSelect.value;
             
-            if (!country || !state) {
-                showMessage("Bitte wählen Sie zuerst Land und Bundesland aus.", 4000);
+            if (!country || !state || state.startsWith('Bitte')) {
+                showMessage("Bitte wählen Sie zuerst ein gültiges Land und Bundesland aus.", 4000);
                 return;
             }
 
@@ -422,6 +423,7 @@
         function checkGuess() {
             const frequencyStr = frequencyInput.value;
             if (!currentStation || !frequencyStr) {
+                showMessage("Bitte geben Sie eine Frequenz ein.", 4000);
                 return;
             }
 
@@ -450,6 +452,7 @@
                     searchButton.style.display = 'block';
                     gameButton.style.display = 'block';
                     findButton.style.display = 'none';
+                    coolFeatures.classList.add('hidden-feature');
                 });
             } else if (frequency < currentStation.frequency) {
                 resultElement.innerHTML = `<p class="text-yellow-600 text-xl font-semibold">Ihre Frequenz ist zu niedrig. Versuchen Sie es mit einer höheren.</p>`;
@@ -464,9 +467,14 @@
             const state = stateSelect.value;
             const frequencyStr = frequencyInput.value;
 
-            if (!country || !state || !frequencyStr) {
-                showMessage("Bitte füllen Sie alle Felder aus.", 4000);
+            if (!country || !state || state.startsWith('Bitte')) {
+                showMessage("Bitte wählen Sie zuerst ein gültiges Land und Bundesland aus.", 4000);
                 return;
+            }
+
+            if (!frequencyStr) {
+                 showMessage("Bitte geben Sie eine Frequenz ein.", 4000);
+                 return;
             }
 
             const frequency = parseFloat(frequencyStr.replace(',', '.'));
@@ -493,6 +501,7 @@
                     <p class="text-gray-500">Überprüfen Sie Ihre Eingabe.</p>
                 `;
                 coolFeatures.classList.add('hidden-feature');
+                currentStation = null;
             }
         }
         
@@ -520,7 +529,7 @@
                 if (isGameMode) {
                     checkGuess();
                 } else {
-                    searchButton.click();
+                    searchStation();
                 }
             }
         });
@@ -528,7 +537,7 @@
         // Initialisierung des Bundesland-Dropdown-Menüs
         countrySelect.addEventListener('change', updateStateSelect);
         updateStateSelect(); // Initialer Aufruf zum Einrichten des UI
-
+        
         // Verstecke den "Frequenz raten"-Button am Anfang
         findButton.style.display = 'none';
     </script>
